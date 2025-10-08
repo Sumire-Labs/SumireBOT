@@ -1,0 +1,29 @@
+{
+  "name": "sumirebot",
+  "version": "0.1.0",
+  "description": "A modern Discord bot",
+  "main": "index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch index.ts",
+    "start": "bun run index.ts",
+    "db:studio": "drizzle-kit studio"
+  },
+  "keywords": ["discord", "bot", "typescript", "bun", "sapphire"],
+  "author": "",
+  "license": "LGPL-3.0",
+  "dependencies": {
+    "@sapphire/framework": "^5.3.3",
+    "@sapphire/plugin-logger": "^4.0.3",
+    "@sapphire/utilities": "^3.17.3",
+    "discord.js": "^14.17.3",
+    "drizzle-orm": "^0.37.3",
+    "js-yaml": "^4.1.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.17",
+    "@types/js-yaml": "^4.0.9",
+    "drizzle-kit": "^0.29.1"
+  }
+}

@@ -1,0 +1,10 @@
+[install]
+optional = true
+dev = true
+peer = true
+
+[install.cache]
+disable = false
+
+[run]
+shell = "bun"
