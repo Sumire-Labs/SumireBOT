@@ -10,7 +10,7 @@ bun.lockb
 *.db
 *.db-shm
 *.db-wal
-database/
+/database/
 
 # Logs
 *.log
