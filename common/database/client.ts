@@ -5,8 +5,10 @@
 
 import { Database } from 'bun:sqlite';
 import { drizzle, type BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
+import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 import * as schema from './schema.js';
 import { eq } from 'drizzle-orm';
+import { existsSync } from 'fs';
 
 let db: BunSQLiteDatabase<typeof schema> | null = null;
 
@@ -33,12 +35,10 @@ export function initDatabase(path: string = './database/sumire.db'): BunSQLiteDa
 function runMigrations(database: BunSQLiteDatabase<typeof schema>): void {
   try {
     // Check if migrations directory exists with valid journal
-    const fs = require('fs');
     const migrationsPath = './database/migrations';
     const journalPath = `${migrationsPath}/meta/_journal.json`;
 
-    if (fs.existsSync(journalPath)) {
-      const { migrate } = require('drizzle-orm/bun-sqlite/migrator');
+    if (existsSync(journalPath)) {
       migrate(database, { migrationsFolder: migrationsPath });
       console.log('✅ Database migrations applied');
     } else {
@@ -46,7 +46,7 @@ function runMigrations(database: BunSQLiteDatabase<typeof schema>): void {
       console.log('ℹ️  No migrations found, creating tables directly...');
       createTablesDirectly(database);
     }
-  } catch (error) {
+  } catch (_error) {
     console.log('ℹ️  Falling back to direct table creation...');
     // Try to create tables directly as fallback
     createTablesDirectly(database);
@@ -57,6 +57,7 @@ function runMigrations(database: BunSQLiteDatabase<typeof schema>): void {
  * Create tables directly (fallback method)
  */
 function createTablesDirectly(database: BunSQLiteDatabase<typeof schema>): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sqlite = (database as any).$client;
 
   // Create ticket_settings table
@@ -129,6 +130,7 @@ export async function measureDatabaseLatency(): Promise<number> {
   const db = getDatabase();
 
   // Simple SELECT 1 query to measure latency
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sqlite = (db as any).$client;
   sqlite.prepare('SELECT 1').run();
 

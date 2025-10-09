@@ -6,7 +6,7 @@
 import { Listener } from '@sapphire/framework';
 import type { Message } from 'discord.js';
 import { loggerSettingsService } from '../common/database/client.js';
-import { createField, formatTimestamp } from '../common/design/components.js';
+import { createField } from '../common/design/components.js';
 
 export class MessageDeleteListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {

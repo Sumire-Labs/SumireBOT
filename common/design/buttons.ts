@@ -7,7 +7,6 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ActionRowBuilder,
-  type ButtonBuilder as ButtonBuilderType,
 } from 'discord.js';
 
 export type M3ButtonStyle = 'primary' | 'secondary' | 'success' | 'danger' | 'link';

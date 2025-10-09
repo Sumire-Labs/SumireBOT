@@ -4,9 +4,10 @@
  */
 
 import type {
-  CommandInteraction,
   ChatInputCommandInteraction,
   Message,
+  EmbedBuilder,
+  APIEmbed,
 } from 'discord.js';
 import { M3EmbedBuilder } from './embeds.js';
 
@@ -93,7 +94,7 @@ export class ProgressTracker {
   /**
    * Update with a custom embed
    */
-  async update(embed: any): Promise<void> {
+  async update(embed: EmbedBuilder | APIEmbed): Promise<void> {
     await this.interaction.editReply({
       embeds: [embed],
     });

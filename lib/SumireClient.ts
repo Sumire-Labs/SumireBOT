@@ -4,7 +4,7 @@
  */
 
 import { SapphireClient, container } from '@sapphire/framework';
-import { GatewayIntentBits, Partials, ActivityType } from 'discord.js';
+import { GatewayIntentBits, Partials } from 'discord.js';
 import { initDatabase } from '../common/database/client.js';
 import { M3EmbedBuilder } from '../common/design/embeds.js';
 import { loadColorsFromConfig, type ColorPalette } from '../common/design/colors.js';

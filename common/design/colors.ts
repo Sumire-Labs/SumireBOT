@@ -3,6 +3,23 @@
  * Dynamic and vibrant color palette for Discord embeds
  */
 
+interface DesignConfig {
+  design?: {
+    colors?: {
+      primary?: string;
+      secondary?: string;
+      tertiary?: string;
+      success?: string;
+      warning?: string;
+      error?: string;
+      info?: string;
+      surface?: string;
+      surfaceVariant?: string;
+      onSurface?: string;
+    };
+  };
+}
+
 export interface ColorPalette {
   primary: number;
   secondary: number;
@@ -42,7 +59,7 @@ export const M3Colors: ColorPalette = {
 /**
  * Load colors from config
  */
-export function loadColorsFromConfig(config: any): ColorPalette {
+export function loadColorsFromConfig(config: DesignConfig | null): ColorPalette {
   if (!config) return M3Colors;
 
   const designColors = config.design?.colors;
