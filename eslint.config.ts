@@ -1,7 +1,8 @@
+import type { Linter } from 'eslint';
 import tseslint from '@typescript-eslint/eslint-plugin';
 import parser from '@typescript-eslint/parser';
 
-export default [
+const config: Linter.Config[] = [
   {
     files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
@@ -26,7 +27,8 @@ export default [
       'dist/**',
       'build/**',
       '*.config.js',
-      '*.config.ts',
     ],
   },
 ];
+
+export default config;
