@@ -46,6 +46,10 @@ export class GuildBanRemoveListener extends Listener {
       timestamp: true,
     });
 
-    await logChannel.send({ embeds: [embed] });
+    try {
+      await logChannel.send({ embeds: [embed] });
+    } catch (error) {
+      console.error('Failed to send guild ban remove log:', error);
+    }
   }
 }

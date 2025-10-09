@@ -19,6 +19,9 @@ export class GuildMemberRemoveListener extends Listener {
   public async run(member: GuildMember) {
     const guildId = member.guild.id;
 
+    // BOT自身の退出はログしない（サーバーにアクセスできないため）
+    if (member.id === this.container.client.user?.id) return;
+
     // Check if logger is enabled
     const settings = await loggerSettingsService.get(guildId);
     if (!settings) return;
