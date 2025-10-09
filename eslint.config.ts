@@ -1,8 +1,7 @@
-import type { Linter } from 'eslint';
 import tseslint from '@typescript-eslint/eslint-plugin';
 import parser from '@typescript-eslint/parser';
 
-const config: Linter.Config[] = [
+export default [
   {
     files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
@@ -13,7 +12,7 @@ const config: Linter.Config[] = [
       },
     },
     plugins: {
-      '@typescript-eslint': tseslint,
+      '@typescript-eslint': tseslint as any,
     },
     rules: {
       ...tseslint.configs.recommended.rules,
@@ -30,5 +29,3 @@ const config: Linter.Config[] = [
     ],
   },
 ];
-
-export default config;
