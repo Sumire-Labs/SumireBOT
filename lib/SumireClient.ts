@@ -19,9 +19,14 @@ export interface BotConfig {
   };
   features: {
     ping: boolean;
-    lang: boolean;
     ticket: boolean;
     logger: boolean;
+    autorole: boolean;
+    panel: boolean;
+  };
+  pterodactyl?: {
+    url: string;
+    apiKey: string;
   };
 }
 

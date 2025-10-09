@@ -20,6 +20,12 @@ features:
   ticket: true
   logger: true
   autorole: true
+  panel: true
+
+# Pterodactyl Panel (panel機能を使う場合は設定してください)
+pterodactyl:
+  url: "https://panel.example.com"  # PterodactylパネルのURL
+  apiKey: "ptlc_YOUR_CLIENT_API_KEY"  # Client API Key (https://panel.example.com/account/api から取得)
 
 # Material 3 Design System (Optional - カスタマイズしたい場合のみ設定)
 # design:
