@@ -1,0 +1,39 @@
+version: 2
+updates:
+  # Bunの依存関係を週一でチェック
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "s12kuma01"
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      # TypeScript関連をまとめる
+      typescript:
+        patterns:
+          - "@typescript-eslint/*"
+          - "typescript"
+      # Drizzle関連をまとめる
+      drizzle:
+        patterns:
+          - "drizzle-*"
+
+  # GitHub Actionsのバージョンも管理
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    commit-message:
+      prefix: "ci"
