@@ -5,6 +5,7 @@
 
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ButtonInteraction } from 'discord.js';
+import { MessageFlags } from 'discord.js';
 import { PterodactylClient, type PowerSignal } from '../../common/pterodactyl/client.js';
 
 export class PowerControlHandler extends InteractionHandler {
@@ -23,7 +24,7 @@ export class PowerControlHandler extends InteractionHandler {
   public override async run(interaction: ButtonInteraction) {
     if (!this.container.config.pterodactyl) return;
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     // Parse custom ID: panel_power_{serverId}_{signal}
     const parts = interaction.customId.split('_');

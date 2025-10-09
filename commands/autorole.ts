@@ -4,7 +4,7 @@
  */
 
 import { Command } from '@sapphire/framework';
-import { PermissionFlagsBits } from 'discord.js';
+import { PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { autoroleSettingsService } from '../common/database/client.js';
 
 export class AutoRoleCommand extends Command {
@@ -78,7 +78,7 @@ export class AutoRoleCommand extends Command {
     const role = interaction.options.getRole('role', true);
     const target = interaction.options.getString('target', true);
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const guild = interaction.guild;
     if (!guild) return;
@@ -139,7 +139,7 @@ export class AutoRoleCommand extends Command {
 
     const target = interaction.options.getString('target', true);
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     // Remove settings
     if (target === 'human') {

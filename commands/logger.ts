@@ -4,7 +4,7 @@
  */
 
 import { Command } from '@sapphire/framework';
-import { PermissionFlagsBits, ChannelType } from 'discord.js';
+import { PermissionFlagsBits, ChannelType, MessageFlags } from 'discord.js';
 import { loggerSettingsService } from '../common/database/client.js';
 import { createField } from '../common/design/components.js';
 
@@ -52,7 +52,7 @@ export class LoggerCommand extends Command {
 
     const channel = interaction.options.getChannel('channel', true);
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     // Default enabled events
     const enabledEvents = [

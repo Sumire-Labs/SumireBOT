@@ -4,7 +4,7 @@
  */
 
 import { Command } from '@sapphire/framework';
-import { SlashCommandBuilder, StringSelectMenuBuilder, ActionRowBuilder } from 'discord.js';
+import { SlashCommandBuilder, StringSelectMenuBuilder, ActionRowBuilder, MessageFlags } from 'discord.js';
 import { PterodactylClient } from '../common/pterodactyl/client.js';
 
 export class PanelCommand extends Command {
@@ -36,7 +36,7 @@ export class PanelCommand extends Command {
         'エラー',
         'Panel機能が無効になっています。'
       );
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -46,11 +46,11 @@ export class PanelCommand extends Command {
         'エラー',
         'Pterodactylの設定がされていません。'
       );
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
       const client = new PterodactylClient(this.container.config.pterodactyl);

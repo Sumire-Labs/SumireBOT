@@ -5,6 +5,7 @@
 
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ButtonInteraction } from 'discord.js';
+import { MessageFlags } from 'discord.js';
 import { ticketService } from '../../common/database/client.js';
 
 export class CloseTicketHandler extends InteractionHandler {
@@ -26,7 +27,7 @@ export class CloseTicketHandler extends InteractionHandler {
 
     if (!guildId) return;
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     // Check if this channel is a ticket
     const ticket = await ticketService.get(channelId);

@@ -5,7 +5,7 @@
 
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ButtonInteraction } from 'discord.js';
-import { ChannelType, PermissionFlagsBits } from 'discord.js';
+import { ChannelType, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { ticketSettingsService, ticketService } from '../../common/database/client.js';
 import { ButtonPresets, createButtonRow } from '../../common/design/buttons.js';
 
@@ -28,7 +28,7 @@ export class CreateTicketHandler extends InteractionHandler {
 
     if (!guildId) return;
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const guild = interaction.guild;
     if (!guild) return;
