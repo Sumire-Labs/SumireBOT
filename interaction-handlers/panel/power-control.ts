@@ -52,6 +52,9 @@ export class PowerControlHandler extends InteractionHandler {
       // Update the original message with new server status after a delay
       setTimeout(async () => {
         try {
+          // Check if message still exists
+          if (!interaction.message) return;
+
           const server = await client.getServer(serverId);
           const resources = await client.getServerResources(serverId);
 
@@ -84,8 +87,8 @@ export class PowerControlHandler extends InteractionHandler {
           });
 
           await interaction.message.edit({ embeds: [updatedEmbed] });
-        } catch (error) {
-          console.error('Failed to update server status:', error);
+        } catch (_error) {
+          // Silently ignore errors (message might be deleted or inaccessible)
         }
       }, 3000);
     } catch (error) {
