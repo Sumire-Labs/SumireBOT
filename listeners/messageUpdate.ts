@@ -17,6 +17,22 @@ export class MessageUpdateListener extends Listener {
   }
 
   public async run(oldMessage: Message, newMessage: Message) {
+    // Fetch partial messages
+    if (oldMessage.partial) {
+      try {
+        await oldMessage.fetch();
+      } catch {
+        return; // Message was deleted or inaccessible
+      }
+    }
+    if (newMessage.partial) {
+      try {
+        await newMessage.fetch();
+      } catch {
+        return; // Message was deleted or inaccessible
+      }
+    }
+
     if (!newMessage.guild || newMessage.author?.bot) return;
     if (oldMessage.content === newMessage.content) return;
 

@@ -17,6 +17,9 @@ export class MessageDeleteListener extends Listener {
   }
 
   public async run(message: Message) {
+    // Partial messages cannot be fetched after deletion, so skip if essential data is missing
+    if (message.partial && !message.author) return;
+
     if (!message.guild || message.author?.bot) return;
 
     const guildId = message.guild.id;
