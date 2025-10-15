@@ -1,12 +1,19 @@
 /**
  * Logger Command
- * Logger system management
+ * Logger system management with Components v2
  */
 
 import { Command } from '@sapphire/framework';
-import { PermissionFlagsBits, ChannelType, MessageFlags } from 'discord.js';
+import {
+  PermissionFlagsBits,
+  ChannelType,
+  MessageFlags,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+} from 'discord.js';
 import { loggerSettingsService } from '../common/database/client.js';
-import { createField } from '../common/design/components.js';
 
 export class LoggerCommand extends Command {
   public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -73,20 +80,63 @@ export class LoggerCommand extends Command {
     // Save settings
     await loggerSettingsService.set(guildId, channel.id, enabledEvents);
 
-    // Success message
-    const successEmbed = this.container.embedBuilder.success(
-      'ログチャンネルを設定しました',
-      '以下のチャンネルにログが出力されます。'
+    // Success message with Components v2
+    const headerSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('# ✅ ログチャンネルを設定しました')
     );
 
-    successEmbed.addFields([
-      createField(
-        'ログチャンネル',
-        `<#${channel.id}>`,
-        false
-      ),
-    ]);
+    const separator1 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
 
-    await interaction.editReply({ embeds: [successEmbed] });
+    const channelInfoSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `ログ出力先チャンネルを設定しました。\n\n` +
+        `📍 **ログチャンネル:** <#${channel.id}>`
+      )
+    );
+
+    const separator2 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const eventsText = enabledEvents
+      .map(event => {
+        const eventNames: Record<string, string> = {
+          'messageDelete': '📝 メッセージ削除',
+          'messageUpdate': '✏️ メッセージ編集',
+          'guildMemberAdd': '➕ メンバー参加',
+          'guildMemberRemove': '➖ メンバー退出',
+          'guildBanAdd': '🔨 Ban追加',
+          'guildBanRemove': '🔓 Ban解除',
+          'guildMemberUpdate': '👤 メンバー更新',
+          'roleCreate': '🎭 ロール作成',
+          'roleUpdate': '🎨 ロール更新',
+          'roleDelete': '🗑️ ロール削除',
+          'channelCreate': '📢 チャンネル作成',
+          'channelDelete': '🚫 チャンネル削除',
+        };
+        return eventNames[event] || event;
+      })
+      .join('\n');
+
+    const eventsSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `📋 **記録するイベント:**\n${eventsText}`
+      )
+    );
+
+    const container = new ContainerBuilder()
+      .setAccentColor(this.container.colors.success)
+      .addSectionComponents(headerSection)
+      .addSeparatorComponents(separator1)
+      .addSectionComponents(channelInfoSection)
+      .addSeparatorComponents(separator2)
+      .addSectionComponents(eventsSection);
+
+    await interaction.editReply({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
   }
 }
