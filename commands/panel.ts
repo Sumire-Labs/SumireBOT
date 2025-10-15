@@ -1,10 +1,19 @@
 /**
  * Panel Command
- * Pterodactyl Panel server management
+ * Pterodactyl Panel server management with Components v2
  */
 
 import { Command } from '@sapphire/framework';
-import { SlashCommandBuilder, StringSelectMenuBuilder, ActionRowBuilder, MessageFlags } from 'discord.js';
+import {
+  SlashCommandBuilder,
+  StringSelectMenuBuilder,
+  ActionRowBuilder,
+  MessageFlags,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+} from 'discord.js';
 import { PterodactylClient } from '../common/pterodactyl/client.js';
 
 export class PanelCommand extends Command {
@@ -79,16 +88,34 @@ export class PanelCommand extends Command {
 
       const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
 
-      const embed = this.container.embedBuilder.create({
-        title: '🖥️ サーバー管理パネル',
-        description: `${servers.length}個のサーバーが見つかりました。\n管理するサーバーを選択してください。`,
-        color: this.container.colors.primary,
-        timestamp: true,
-      });
+      // Build server list with Components v2
+      const headerSection = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('# 🖥️ サーバー管理パネル')
+      );
+
+      const separator = new SeparatorBuilder()
+        .setDivider(true)
+        .setSpacing(1);
+
+      const infoSection = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `${servers.length}個のサーバーが見つかりました。\n\n` +
+          `📋 **利用可能なサーバー**\n` +
+          servers.map(s => `• ${s.name}`).slice(0, 5).join('\n') +
+          (servers.length > 5 ? `\n*... 他${servers.length - 5}件*` : '') +
+          `\n\n下のメニューから管理するサーバーを選択してください。`
+        )
+      );
+
+      const container = new ContainerBuilder()
+        .setAccentColor(this.container.colors.primary)
+        .addSectionComponents(headerSection)
+        .addSeparatorComponents(separator)
+        .addSectionComponents(infoSection);
 
       await interaction.editReply({
-        embeds: [embed],
-        components: [row],
+        components: [container, row],
+        flags: MessageFlags.IsComponentsV2,
       });
     } catch (error) {
       console.error('Panel command error:', error);

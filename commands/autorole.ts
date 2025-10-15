@@ -1,10 +1,17 @@
 /**
  * AutoRole Command
- * Automatic role assignment management
+ * Automatic role assignment management with Components v2
  */
 
 import { Command } from '@sapphire/framework';
-import { PermissionFlagsBits, MessageFlags } from 'discord.js';
+import {
+  PermissionFlagsBits,
+  MessageFlags,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+} from 'discord.js';
 import { autoroleSettingsService } from '../common/database/client.js';
 
 export class AutoRoleCommand extends Command {
@@ -123,14 +130,36 @@ export class AutoRoleCommand extends Command {
       await autoroleSettingsService.setBotRole(guildId, role.id);
     }
 
-    // Success message
+    // Success message with Components v2
     const targetName = target === 'human' ? '👤 Human' : '🤖 Bot';
-    const successEmbed = this.container.embedBuilder.success(
-      '自動ロール付与を設定しました',
-      `**${targetName}** メンバーがサーバーに参加すると、自動的に <@&${role.id}> ロールが付与されます。`
+    const successHeader = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('# ✅ 自動ロール付与を設定しました')
     );
 
-    await interaction.editReply({ embeds: [successEmbed] });
+    const separator = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const successInfo = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `自動ロール付与の設定が完了しました。\n\n` +
+        `📋 **対象:** ${targetName}\n` +
+        `🎭 **付与するロール:** <@&${role.id}>\n\n` +
+        `**動作:**\n` +
+        `${targetName}メンバーがサーバーに参加すると、自動的にこのロールが付与されます。`
+      )
+    );
+
+    const successContainer = new ContainerBuilder()
+      .setAccentColor(this.container.colors.success)
+      .addSectionComponents(successHeader)
+      .addSeparatorComponents(separator)
+      .addSectionComponents(successInfo);
+
+    await interaction.editReply({
+      components: [successContainer],
+      flags: MessageFlags.IsComponentsV2,
+    });
   }
 
   private async handleRemove(interaction: Command.ChatInputCommandInteraction) {
@@ -148,13 +177,34 @@ export class AutoRoleCommand extends Command {
       await autoroleSettingsService.setBotRole(guildId, null);
     }
 
-    // Success message
+    // Success message with Components v2
     const targetName = target === 'human' ? '👤 Human' : '🤖 Bot';
-    const successEmbed = this.container.embedBuilder.success(
-      '自動ロール付与を削除しました',
-      `**${targetName}** メンバーへの自動ロール付与が無効になりました。`
+    const successHeader = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('# ✅ 自動ロール付与を削除しました')
     );
 
-    await interaction.editReply({ embeds: [successEmbed] });
+    const separator = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const successInfo = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `自動ロール付与の設定が削除されました。\n\n` +
+        `📋 **対象:** ${targetName}\n\n` +
+        `**状態:**\n` +
+        `${targetName}メンバーへの自動ロール付与が無効になりました。`
+      )
+    );
+
+    const successContainer = new ContainerBuilder()
+      .setAccentColor(this.container.colors.success)
+      .addSectionComponents(successHeader)
+      .addSeparatorComponents(separator)
+      .addSectionComponents(successInfo);
+
+    await interaction.editReply({
+      components: [successContainer],
+      flags: MessageFlags.IsComponentsV2,
+    });
   }
 }
