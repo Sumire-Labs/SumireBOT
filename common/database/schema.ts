@@ -70,6 +70,8 @@ export const polls = sqliteTable('polls', {
   creatorId: text('creator_id').notNull(),
   question: text('question').notNull(),
   options: text('options').notNull(), // JSON array of options
+  votes: text('votes').default('{}'), // JSON object: {"0": 5, "1": 3, ...} vote counts per option
+  voters: text('voters').default('{}'), // JSON object: {"userId": "optionIndex", ...} track who voted for what
   endsAt: integer('ends_at', { mode: 'timestamp' }),
   status: text('status').notNull().default('active'), // active, closed
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),

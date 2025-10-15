@@ -119,6 +119,8 @@ function createTablesDirectly(database: BunSQLiteDatabase<typeof schema>): void 
       creator_id TEXT NOT NULL,
       question TEXT NOT NULL,
       options TEXT NOT NULL,
+      votes TEXT DEFAULT '{}',
+      voters TEXT DEFAULT '{}',
       ends_at INTEGER,
       status TEXT NOT NULL DEFAULT 'active',
       created_at INTEGER NOT NULL,
@@ -337,6 +339,8 @@ export const pollService = {
     const db = getDatabase();
     const result = await db.insert(schema.polls).values({
       ...data,
+      votes: '{}',
+      voters: '{}',
       createdAt: new Date(),
     }).returning();
     return result[0];
@@ -356,6 +360,37 @@ export const pollService = {
       where: eq(schema.polls.status, 'active'),
     });
     return result;
+  },
+
+  async vote(messageId: string, userId: string, optionIndex: number) {
+    const db = getDatabase();
+    const poll = await this.get(messageId);
+    if (!poll || poll.status === 'closed') return null;
+
+    const votes = JSON.parse(poll.votes || '{}') as Record<string, number>;
+    const voters = JSON.parse(poll.voters || '{}') as Record<string, number>;
+
+    // Check if user already voted
+    const previousVote = voters[userId];
+    if (previousVote !== undefined) {
+      // Remove previous vote
+      votes[previousVote.toString()] = (votes[previousVote.toString()] || 1) - 1;
+    }
+
+    // Add new vote
+    votes[optionIndex.toString()] = (votes[optionIndex.toString()] || 0) + 1;
+    voters[userId] = optionIndex;
+
+    // Update database
+    await db
+      .update(schema.polls)
+      .set({
+        votes: JSON.stringify(votes),
+        voters: JSON.stringify(voters),
+      })
+      .where(eq(schema.polls.messageId, messageId));
+
+    return { votes, voters };
   },
 
   async close(messageId: string) {
