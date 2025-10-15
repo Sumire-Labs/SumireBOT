@@ -5,8 +5,14 @@
 
 import { Listener } from '@sapphire/framework';
 import type { Role } from 'discord.js';
+import {
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags,
+} from 'discord.js';
 import { loggerSettingsService } from '../common/database/client.js';
-import { createField } from '../common/design/components.js';
 
 export class RoleCreateListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -28,27 +34,36 @@ export class RoleCreateListener extends Listener {
     const logChannel = role.guild.channels.cache.get(settings.logChannelId);
     if (!logChannel?.isTextBased()) return;
 
-    const embed = this.container.embedBuilder.create({
-      title: '🎨 ロールが作成されました',
-      color: this.container.colors.success,
-      fields: [
-        createField(
-          'ロール',
-          `<@&${role.id}> (${role.name})`,
-          true
-        ),
-        createField(
-          'カラー',
-          role.hexColor,
-          true
-        ),
-      ],
-      footer: '作成時刻',
-      timestamp: true,
-    });
+    // Create log with Components v2
+    const headerSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('# 🎨 ロールが作成されました')
+    );
+
+    const separator1 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const infoSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `🎭 **ロール:** <@&${role.id}>\n` +
+        `🏷️ **ロール名:** ${role.name}\n` +
+        `🆔 **ロールID:** \`${role.id}\`\n` +
+        `🎨 **カラー:** ${role.hexColor}\n` +
+        `🕒 **作成時刻:** <t:${Math.floor(Date.now() / 1000)}:F>`
+      )
+    );
+
+    const container = new ContainerBuilder()
+      .setAccentColor(this.container.colors.success)
+      .addSectionComponents(headerSection)
+      .addSeparatorComponents(separator1)
+      .addSectionComponents(infoSection);
 
     try {
-      await logChannel.send({ embeds: [embed] });
+      await logChannel.send({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
     } catch (error) {
       console.error('Failed to send role create log:', error);
     }

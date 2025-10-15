@@ -5,8 +5,14 @@
 
 import { Listener } from '@sapphire/framework';
 import type { GuildMember } from 'discord.js';
+import {
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags,
+} from 'discord.js';
 import { loggerSettingsService, autoroleSettingsService } from '../common/database/client.js';
-import { createField, formatTimestamp } from '../common/design/components.js';
 
 export class GuildMemberAddListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -47,27 +53,38 @@ export class GuildMemberAddListener extends Listener {
     const logChannel = member.guild.channels.cache.get(settings.logChannelId);
     if (!logChannel?.isTextBased()) return;
 
-    // Create log embed
-    const embed = this.container.embedBuilder.create({
-      title: '👋 メンバーが参加しました',
-      color: this.container.colors.success,
-      fields: [
-        createField(
-          'メンバー',
-          `<@${member.id}> (${member.user.tag})`,
-          false
-        ),
-        createField(
-          'アカウント作成日',
-          formatTimestamp(member.user.createdAt, 'F'),
-          true
-        ),
-      ],
-      thumbnail: member.user.displayAvatarURL(),
-      footer: '参加時刻',
-      timestamp: true,
-    });
+    // Create log with Components v2
+    const headerSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('# 👋 メンバーが参加しました')
+    );
 
-    await logChannel.send({ embeds: [embed] });
+    const separator1 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const infoSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `👤 **メンバー:** <@${member.id}>\n` +
+        `🏷️ **ユーザー名:** ${member.user.tag}\n` +
+        `🆔 **ユーザーID:** \`${member.id}\`\n` +
+        `📅 **アカウント作成日:** <t:${Math.floor(member.user.createdTimestamp / 1000)}:F>\n` +
+        `🕒 **参加時刻:** <t:${Math.floor(Date.now() / 1000)}:F>`
+      )
+    );
+
+    const container = new ContainerBuilder()
+      .setAccentColor(this.container.colors.success)
+      .addSectionComponents(headerSection)
+      .addSeparatorComponents(separator1)
+      .addSectionComponents(infoSection);
+
+    try {
+      await logChannel.send({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
+    } catch (error) {
+      console.error('Failed to send guild member add log:', error);
+    }
   }
 }

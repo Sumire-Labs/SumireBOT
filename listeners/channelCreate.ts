@@ -5,8 +5,14 @@
 
 import { Listener } from '@sapphire/framework';
 import type { GuildChannel } from 'discord.js';
+import {
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags,
+} from 'discord.js';
 import { loggerSettingsService } from '../common/database/client.js';
-import { createField } from '../common/design/components.js';
 
 export class ChannelCreateListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -29,35 +35,44 @@ export class ChannelCreateListener extends Listener {
     if (!logChannel?.isTextBased()) return;
 
     const channelTypeMap: Record<number, string> = {
-      0: 'Text',
-      2: 'Voice',
-      4: 'Category',
-      5: 'Announcement',
-      13: 'Stage',
-      15: 'Forum',
+      0: 'テキストチャンネル',
+      2: 'ボイスチャンネル',
+      4: 'カテゴリー',
+      5: 'アナウンスチャンネル',
+      13: 'ステージチャンネル',
+      15: 'フォーラムチャンネル',
     };
 
-    const embed = this.container.embedBuilder.create({
-      title: '📢 チャンネルが作成されました',
-      color: this.container.colors.success,
-      fields: [
-        createField(
-          'チャンネル',
-          `<#${channel.id}> (${channel.name})`,
-          true
-        ),
-        createField(
-          'タイプ',
-          channelTypeMap[channel.type] || 'Unknown',
-          true
-        ),
-      ],
-      footer: '作成時刻',
-      timestamp: true,
-    });
+    // Create log with Components v2
+    const headerSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('# 📢 チャンネルが作成されました')
+    );
+
+    const separator1 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const infoSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `📺 **チャンネル:** <#${channel.id}>\n` +
+        `🏷️ **チャンネル名:** ${channel.name}\n` +
+        `🆔 **チャンネルID:** \`${channel.id}\`\n` +
+        `📁 **タイプ:** ${channelTypeMap[channel.type] || 'Unknown'}\n` +
+        `🕒 **作成時刻:** <t:${Math.floor(Date.now() / 1000)}:F>`
+      )
+    );
+
+    const container = new ContainerBuilder()
+      .setAccentColor(this.container.colors.success)
+      .addSectionComponents(headerSection)
+      .addSeparatorComponents(separator1)
+      .addSectionComponents(infoSection);
 
     try {
-      await logChannel.send({ embeds: [embed] });
+      await logChannel.send({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
     } catch (error) {
       console.error('Failed to send channel create log:', error);
     }

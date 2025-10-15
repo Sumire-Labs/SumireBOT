@@ -5,8 +5,14 @@
 
 import { Listener } from '@sapphire/framework';
 import type { GuildMember } from 'discord.js';
+import {
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags,
+} from 'discord.js';
 import { loggerSettingsService } from '../common/database/client.js';
-import { createField, formatTimestamp } from '../common/design/components.js';
 
 export class GuildMemberUpdateListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -35,28 +41,36 @@ export class GuildMemberUpdateListener extends Listener {
       const logChannel = newMember.guild.channels.cache.get(settings.logChannelId);
       if (!logChannel?.isTextBased()) return;
 
-      // Create timeout log embed
-      const embed = this.container.embedBuilder.create({
-        title: '⏱️ タイムアウトが設定されました',
-        color: this.container.colors.warning,
-        fields: [
-          createField(
-            'メンバー',
-            `<@${newMember.id}> (${newMember.user.tag})`,
-            false
-          ),
-          createField(
-            '解除時刻',
-            formatTimestamp(newTimeout, 'F'),
-            true
-          ),
-        ],
-        thumbnail: newMember.user.displayAvatarURL(),
-        timestamp: true,
-      });
+      // Create log with Components v2
+      const headerSection = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('# ⏱️ タイムアウトが設定されました')
+      );
+
+      const separator1 = new SeparatorBuilder()
+        .setDivider(true)
+        .setSpacing(1);
+
+      const infoSection = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `👤 **メンバー:** <@${newMember.id}>\n` +
+          `🏷️ **ユーザー名:** ${newMember.user.tag}\n` +
+          `🆔 **ユーザーID:** \`${newMember.id}\`\n` +
+          `🕒 **設定時刻:** <t:${Math.floor(Date.now() / 1000)}:F>\n` +
+          `⏰ **解除時刻:** <t:${Math.floor(newTimeout.getTime() / 1000)}:F>`
+        )
+      );
+
+      const container = new ContainerBuilder()
+        .setAccentColor(this.container.colors.warning)
+        .addSectionComponents(headerSection)
+        .addSeparatorComponents(separator1)
+        .addSectionComponents(infoSection);
 
       try {
-        await logChannel.send({ embeds: [embed] });
+        await logChannel.send({
+          components: [container],
+          flags: MessageFlags.IsComponentsV2,
+        });
       } catch (error) {
         console.error('Failed to send guild member update log:', error);
       }

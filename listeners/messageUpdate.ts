@@ -1,12 +1,19 @@
 /**
  * Message Update Event Listener
- * Logs edited messages
+ * Logs edited messages with Components v2
  */
 
 import { Listener } from '@sapphire/framework';
 import type { Message } from 'discord.js';
+import {
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags,
+} from 'discord.js';
 import { loggerSettingsService } from '../common/database/client.js';
-import { createField, truncate } from '../common/design/components.js';
+import { truncate } from '../common/design/components.js';
 
 export class MessageUpdateListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -49,38 +56,59 @@ export class MessageUpdateListener extends Listener {
     const logChannel = newMessage.guild.channels.cache.get(settings.logChannelId);
     if (!logChannel?.isTextBased()) return;
 
-    // Create log embed
-    const embed = this.container.embedBuilder.create({
-      title: '✏️ メッセージが編集されました',
-      color: this.container.colors.warning,
-      fields: [
-        createField(
-          '送信者',
-          `<@${newMessage.author.id}>`,
-          true
-        ),
-        createField(
-          'チャンネル',
-          `<#${newMessage.channelId}>`,
-          true
-        ),
-        createField(
-          '編集前',
-          truncate(oldMessage.content || '*内容なし*', 1000),
-          false
-        ),
-        createField(
-          '編集後',
-          truncate(newMessage.content || '*内容なし*', 1000),
-          false
-        ),
-      ],
-      footer: '編集時刻',
-      timestamp: true,
-    });
+    // Create log with Components v2
+    const headerSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('# ✏️ メッセージが編集されました')
+    );
+
+    const separator1 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const infoSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `👤 **送信者:** <@${newMessage.author.id}>\n` +
+        `📍 **チャンネル:** <#${newMessage.channelId}>\n` +
+        `🔗 **[メッセージへ移動](${newMessage.url})**\n` +
+        `🕒 **編集時刻:** <t:${Math.floor(Date.now() / 1000)}:F>`
+      )
+    );
+
+    const separator2 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const beforeSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `📝 **編集前:**\n${truncate(oldMessage.content || '*内容なし*', 1000)}`
+      )
+    );
+
+    const separator3 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const afterSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `✅ **編集後:**\n${truncate(newMessage.content || '*内容なし*', 1000)}`
+      )
+    );
+
+    const container = new ContainerBuilder()
+      .setAccentColor(this.container.colors.warning)
+      .addSectionComponents(headerSection)
+      .addSeparatorComponents(separator1)
+      .addSectionComponents(infoSection)
+      .addSeparatorComponents(separator2)
+      .addSectionComponents(beforeSection)
+      .addSeparatorComponents(separator3)
+      .addSectionComponents(afterSection);
 
     try {
-      await logChannel.send({ embeds: [embed] });
+      await logChannel.send({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
     } catch (error) {
       console.error('Failed to send message update log:', error);
     }

@@ -1,12 +1,18 @@
 /**
  * Message Delete Event Listener
- * Logs deleted messages
+ * Logs deleted messages with Components v2
  */
 
 import { Listener } from '@sapphire/framework';
 import type { Message } from 'discord.js';
+import {
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags,
+} from 'discord.js';
 import { loggerSettingsService } from '../common/database/client.js';
-import { createField } from '../common/design/components.js';
 
 export class MessageDeleteListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -35,33 +41,47 @@ export class MessageDeleteListener extends Listener {
     const logChannel = message.guild.channels.cache.get(settings.logChannelId);
     if (!logChannel?.isTextBased()) return;
 
-    // Create log embed
-    const embed = this.container.embedBuilder.create({
-      title: '📝 メッセージが削除されました',
-      color: this.container.colors.error,
-      fields: [
-        createField(
-          '送信者',
-          message.author ? `<@${message.author.id}>` : 'Unknown',
-          true
-        ),
-        createField(
-          'チャンネル',
-          `<#${message.channelId}>`,
-          true
-        ),
-        createField(
-          '内容',
-          message.content || '*内容なし*',
-          false
-        ),
-      ],
-      footer: '削除時刻',
-      timestamp: true,
-    });
+    // Create log with Components v2
+    const headerSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('# 📝 メッセージが削除されました')
+    );
+
+    const separator1 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const infoSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `👤 **送信者:** ${message.author ? `<@${message.author.id}>` : 'Unknown'}\n` +
+        `📍 **チャンネル:** <#${message.channelId}>\n` +
+        `🆔 **メッセージID:** \`${message.id}\`\n` +
+        `🕒 **削除時刻:** <t:${Math.floor(Date.now() / 1000)}:F>`
+      )
+    );
+
+    const separator2 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const contentSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `📄 **メッセージ内容:**\n${message.content || '*内容なし（画像/添付ファイルのみの可能性）*'}`
+      )
+    );
+
+    const container = new ContainerBuilder()
+      .setAccentColor(this.container.colors.error)
+      .addSectionComponents(headerSection)
+      .addSeparatorComponents(separator1)
+      .addSectionComponents(infoSection)
+      .addSeparatorComponents(separator2)
+      .addSectionComponents(contentSection);
 
     try {
-      await logChannel.send({ embeds: [embed] });
+      await logChannel.send({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2,
+      });
     } catch (error) {
       console.error('Failed to send message delete log:', error);
     }
