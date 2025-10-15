@@ -1,10 +1,20 @@
 /**
  * Poll Command
- * Create polls with reactions
+ * Create polls with Components v2
  */
 
 import { Command } from '@sapphire/framework';
-import { SlashCommandBuilder } from 'discord.js';
+import {
+  SlashCommandBuilder,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ActionRowBuilder,
+  MessageFlags,
+} from 'discord.js';
 import { pollService } from '../common/database/client.js';
 
 const EMOJI_NUMBERS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
@@ -135,36 +145,69 @@ export class PollCommand extends Command {
     // Calculate end time if duration is specified
     const endsAt = duration ? new Date(Date.now() + duration * 60 * 1000) : null;
 
-    // Create poll embed
+    // Create poll with Components v2
+    await interaction.deferReply();
+
+    // Build header section with question
+    const headerSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`# 📊 ${question}`)
+    );
+
+    // Build separators
+    const separator1 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const separator2 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    // Build info section
+    const infoText = endsAt
+      ? `⏰ **投票期限:** <t:${Math.floor(endsAt.getTime() / 1000)}:R>\n👤 **作成者:** ${interaction.user.tag}`
+      : `👤 **作成者:** ${interaction.user.tag}`;
+
+    const infoSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(infoText)
+    );
+
+    // Build options section
     const optionsText = options
-      .map((option, index) => `${EMOJI_NUMBERS[index]} ${option}`)
+      .map((option, index) => `${EMOJI_NUMBERS[index]} **${option}**: 0票`)
       .join('\n');
 
-    const embed = this.container.embedBuilder.create({
-      title: `📊 ${question}`,
-      description: optionsText,
-      color: this.container.colors.primary,
-      fields: endsAt
-        ? [
-            {
-              name: '⏰ 投票期限',
-              value: `<t:${Math.floor(endsAt.getTime() / 1000)}:R>`,
-              inline: false,
-            },
-          ]
-        : [],
-      footer: `作成者: ${interaction.user.tag}`,
-      timestamp: true,
-    });
+    const optionsSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(optionsText)
+    );
+
+    // Build container
+    const container = new ContainerBuilder()
+      .setAccentColor(this.container.colors.primary)
+      .addSectionComponents(headerSection)
+      .addSeparatorComponents(separator1)
+      .addSectionComponents(infoSection)
+      .addSeparatorComponents(separator2)
+      .addSectionComponents(optionsSection);
+
+    // Create buttons for voting
+    const buttonRows: ActionRowBuilder<ButtonBuilder>[] = [];
+    for (let i = 0; i < options.length; i += 5) {
+      const row = new ActionRowBuilder<ButtonBuilder>();
+      for (let j = i; j < Math.min(i + 5, options.length); j++) {
+        const button = new ButtonBuilder()
+          .setCustomId(`poll_vote_${j}`)
+          .setLabel(EMOJI_NUMBERS[j])
+          .setStyle(ButtonStyle.Primary);
+        row.addComponents(button);
+      }
+      buttonRows.push(row);
+    }
 
     // Send poll message
-    await interaction.deferReply();
-    const message = await interaction.editReply({ embeds: [embed] });
-
-    // Add reactions
-    for (let i = 0; i < options.length; i++) {
-      await message.react(EMOJI_NUMBERS[i]);
-    }
+    const message = await interaction.editReply({
+      components: [container, ...buttonRows],
+      flags: MessageFlags.IsComponentsV2,
+    });
 
     // Save poll to database
     await pollService.create({
@@ -199,40 +242,57 @@ export class PollCommand extends Command {
       const message = await channel.messages.fetch(messageId);
       if (!message) return;
 
-      // Count reactions
+      // Get vote counts from database (assuming we store them)
       const options = JSON.parse(poll.options) as string[];
-      const results = await Promise.all(
-        options.map(async (option, index) => {
-          const reaction = message.reactions.cache.get(EMOJI_NUMBERS[index]);
-          const count = reaction ? reaction.count - 1 : 0; // -1 to exclude bot's reaction
-          return { option, count, emoji: EMOJI_NUMBERS[index] };
-        })
-      );
+      const votes = JSON.parse(poll.votes || '{}') as Record<string, number>;
+
+      const results = options.map((option, index) => ({
+        option,
+        count: votes[index.toString()] || 0,
+        emoji: EMOJI_NUMBERS[index],
+      }));
 
       // Sort by count
       results.sort((a, b) => b.count - a.count);
 
-      // Create results embed
+      // Create results with Components v2
+      const headerSection = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`# 📊 ${poll.question} [終了]`)
+      );
+
+      const sep1 = new SeparatorBuilder()
+        .setDivider(true)
+        .setSpacing(1);
+
+      const sep2 = new SeparatorBuilder()
+        .setDivider(true)
+        .setSpacing(1);
+
+      // Build results text
       const resultsText = results
-        .map((r) => `${r.emoji} ${r.option}: **${r.count}票**`)
+        .map((r) => `${r.emoji} **${r.option}**: ${r.count}票`)
         .join('\n');
 
-      const embed = this.container.embedBuilder.create({
-        title: `📊 ${poll.question} [終了]`,
-        description: resultsText,
-        color: this.container.colors.success,
-        fields: [
-          {
-            name: '🏆 最多得票',
-            value: `${results[0].emoji} ${results[0].option} (${results[0].count}票)`,
-            inline: false,
-          },
-        ],
-        footer: `作成者: ${message.author?.tag || 'Unknown'}`,
-        timestamp: true,
-      });
+      const resultsSection = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(resultsText)
+      );
 
-      await message.edit({ embeds: [embed] });
+      // Winner section
+      const winnerSection = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `🏆 **最多得票**\n${results[0].emoji} ${results[0].option} (${results[0].count}票)`
+        )
+      );
+
+      const container = new ContainerBuilder()
+        .setAccentColor(this.container.colors.success)
+        .addSectionComponents(headerSection)
+        .addSeparatorComponents(sep1)
+        .addSectionComponents(resultsSection)
+        .addSeparatorComponents(sep2)
+        .addSectionComponents(winnerSection);
+
+      await message.edit({ components: [container] });
       await pollService.close(messageId);
     } catch (error) {
       console.error('Failed to close poll:', error);
