@@ -1,11 +1,18 @@
 /**
  * Avatar Command
- * Display user's avatar and banner
+ * Display user's avatar and banner with Components v2
  */
 
 import { Command } from '@sapphire/framework';
-import { SlashCommandBuilder } from 'discord.js';
-import { createField } from '../common/design/components.js';
+import {
+  SlashCommandBuilder,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  ThumbnailBuilder,
+  MessageFlags,
+} from 'discord.js';
 
 export class AvatarCommand extends Command {
   public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -45,18 +52,45 @@ export class AvatarCommand extends Command {
       `[4096px](${user.displayAvatarURL({ size: 4096 })})`,
     ].join(' | ');
 
-    const fields = [
-      createField(
-        'ユーザー',
-        `<@${user.id}> (${user.tag})`,
-        false
-      ),
-      createField(
-        'アバターリンク',
-        avatarFormats,
-        false
-      ),
-    ];
+    // Build user profile with Components v2
+    const headerSection = new SectionBuilder()
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`# 👤 ${user.username}のプロフィール画像`)
+      )
+      .setThumbnailAccessory(
+        new ThumbnailBuilder().setMedia({ url: avatarURL })
+      );
+
+    const separator1 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    let userInfoText = `**ユーザー:** <@${user.id}> (${user.tag})\n**User ID:** \`${user.id}\``;
+    if (user.hexAccentColor) {
+      userInfoText += `\n**アクセントカラー:** ${user.hexAccentColor}`;
+    }
+
+    const userInfoSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(userInfoText)
+    );
+
+    const separator2 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const avatarLinksSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `🖼️ **アバターリンク**\n${avatarFormats}`
+      )
+    );
+
+    const container = new ContainerBuilder()
+      .setAccentColor(user.accentColor || this.container.colors.primary)
+      .addSectionComponents(headerSection)
+      .addSeparatorComponents(separator1)
+      .addSectionComponents(userInfoSection)
+      .addSeparatorComponents(separator2)
+      .addSectionComponents(avatarLinksSection);
 
     // Add banner if exists
     if (user.banner) {
@@ -67,36 +101,22 @@ export class AvatarCommand extends Command {
         `[4096px](${user.bannerURL({ size: 4096 })})`,
       ].join(' | ');
 
-      fields.push(
-        createField(
-          'バナーリンク',
-          bannerFormats,
-          false
+      const separator3 = new SeparatorBuilder()
+        .setDivider(true)
+        .setSpacing(1);
+
+      const bannerSection = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `🎨 **バナーリンク**\n${bannerFormats}`
         )
       );
+
+      container.addSeparatorComponents(separator3).addSectionComponents(bannerSection);
     }
 
-    // Add accent color if exists
-    if (user.hexAccentColor) {
-      fields.push(
-        createField(
-          'アクセントカラー',
-          user.hexAccentColor,
-          true
-        )
-      );
-    }
-
-    const embed = this.container.embedBuilder.create({
-      title: `${user.username}のプロフィール画像`,
-      color: user.accentColor || this.container.colors.primary,
-      fields: fields,
-      thumbnail: avatarURL,
-      image: user.banner ? user.bannerURL({ size: 2048 }) || undefined : undefined,
-      footer: `User ID: ${user.id}`,
-      timestamp: true,
+    await interaction.reply({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
     });
-
-    await interaction.reply({ embeds: [embed] });
   }
 }
