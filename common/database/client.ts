@@ -109,6 +109,23 @@ function createTablesDirectly(database: BunSQLiteDatabase<typeof schema>): void 
     )
   `);
 
+  // Create polls table
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS polls (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id TEXT NOT NULL,
+      channel_id TEXT NOT NULL,
+      message_id TEXT NOT NULL UNIQUE,
+      creator_id TEXT NOT NULL,
+      question TEXT NOT NULL,
+      options TEXT NOT NULL,
+      ends_at INTEGER,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at INTEGER NOT NULL,
+      closed_at INTEGER
+    )
+  `);
+
   console.log('✅ Database tables created');
 }
 
@@ -309,5 +326,43 @@ export const autoroleSettingsService = {
         updatedAt: new Date(),
       });
     }
+  },
+};
+
+/**
+ * Poll helpers
+ */
+export const pollService = {
+  async create(data: schema.InsertPoll) {
+    const db = getDatabase();
+    const result = await db.insert(schema.polls).values({
+      ...data,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  },
+
+  async get(messageId: string) {
+    const db = getDatabase();
+    const result = await db.query.polls.findFirst({
+      where: eq(schema.polls.messageId, messageId),
+    });
+    return result;
+  },
+
+  async getActive() {
+    const db = getDatabase();
+    const result = await db.query.polls.findMany({
+      where: eq(schema.polls.status, 'active'),
+    });
+    return result;
+  },
+
+  async close(messageId: string) {
+    const db = getDatabase();
+    await db
+      .update(schema.polls)
+      .set({ status: 'closed', closedAt: new Date() })
+      .where(eq(schema.polls.messageId, messageId));
   },
 };

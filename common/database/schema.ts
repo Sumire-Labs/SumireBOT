@@ -58,6 +58,24 @@ export const autoroleSettings = sqliteTable('autorole_settings', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
+/**
+ * Polls Table
+ * Stores poll information
+ */
+export const polls = sqliteTable('polls', {
+  id: integer('id', { mode: 'number' }).primaryKey({ autoIncrement: true }),
+  guildId: text('guild_id').notNull(),
+  channelId: text('channel_id').notNull(),
+  messageId: text('message_id').notNull().unique(),
+  creatorId: text('creator_id').notNull(),
+  question: text('question').notNull(),
+  options: text('options').notNull(), // JSON array of options
+  endsAt: integer('ends_at', { mode: 'timestamp' }),
+  status: text('status').notNull().default('active'), // active, closed
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  closedAt: integer('closed_at', { mode: 'timestamp' }),
+});
+
 // Export types
 export type TicketSettings = typeof ticketSettings.$inferSelect;
 export type InsertTicketSettings = typeof ticketSettings.$inferInsert;
@@ -70,3 +88,6 @@ export type InsertLoggerSettings = typeof loggerSettings.$inferInsert;
 
 export type AutoroleSettings = typeof autoroleSettings.$inferSelect;
 export type InsertAutoroleSettings = typeof autoroleSettings.$inferInsert;
+
+export type Poll = typeof polls.$inferSelect;
+export type InsertPoll = typeof polls.$inferInsert;
