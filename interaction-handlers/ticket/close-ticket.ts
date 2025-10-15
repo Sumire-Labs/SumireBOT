@@ -1,11 +1,17 @@
 /**
  * Close Ticket Interaction Handler
- * Handles ticket close button clicks
+ * Handles ticket close button clicks with Components v2
  */
 
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ButtonInteraction } from 'discord.js';
-import { MessageFlags } from 'discord.js';
+import {
+  MessageFlags,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+} from 'discord.js';
 import { ticketService } from '../../common/database/client.js';
 
 export class CloseTicketHandler extends InteractionHandler {
@@ -53,15 +59,39 @@ export class CloseTicketHandler extends InteractionHandler {
     // Close ticket in database
     await ticketService.close(channelId);
 
-    // Send closing message
-    const closedEmbed = this.container.embedBuilder.create({
-      title: 'チケットがクローズされました',
-      description: `クローズしたユーザー: <@${interaction.user.id}>\n\nこのチャンネルは5秒後に削除されます。`,
-      color: this.container.colors.error,
-      timestamp: true,
-    });
+    // Send closing message with Components v2
+    const closedHeader = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('# 🔒 チケットがクローズされました')
+    );
 
-    await interaction.editReply({ embeds: [closedEmbed] });
+    const separator = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const closedInfo = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `チケットが正常にクローズされました。\n\n` +
+        `👤 **クローズしたユーザー:** <@${interaction.user.id}>\n` +
+        `🆔 **チケットID:** #${ticket.id}\n` +
+        `📅 **クローズ日時:** <t:${Math.floor(Date.now() / 1000)}:F>\n\n` +
+        `⚠️ **このチャンネルは5秒後に削除されます。**`
+      )
+    );
+
+    const closedContainer = new ContainerBuilder()
+      .setAccentColor(this.container.colors.error)
+      .addSectionComponents(closedHeader)
+      .addSeparatorComponents(separator)
+      .addSectionComponents(closedInfo);
+
+    if (interaction.channel?.isTextBased() && 'send' in interaction.channel) {
+      await interaction.channel.send({
+        components: [closedContainer],
+        flags: MessageFlags.IsComponentsV2,
+      });
+    }
+
+    await interaction.editReply({ content: '✅ チケットをクローズしました。' });
 
     // Delete channel after 5 seconds
     setTimeout(async () => {
