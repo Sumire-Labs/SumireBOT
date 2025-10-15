@@ -58,7 +58,7 @@ export class AvatarCommand extends Command {
         new TextDisplayBuilder().setContent(`# 👤 ${user.username}のプロフィール画像`)
       )
       .setThumbnailAccessory(
-        new ThumbnailBuilder().setMedia({ url: avatarURL })
+        new ThumbnailBuilder().setURL(avatarURL)
       );
 
     const separator1 = new SeparatorBuilder()
