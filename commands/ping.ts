@@ -1,12 +1,18 @@
 /**
  * Ping Command
- * Measures bot latency (WebSocket, REST API, SQL)
+ * Measures bot latency (WebSocket, REST API, SQL) with Components v2
  */
 
 import { Command } from '@sapphire/framework';
+import {
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags,
+} from 'discord.js';
 import { createProgressTracker } from '../common/design/progress.js';
 import { measureDatabaseLatency } from '../common/database/client.js';
-import { createField } from '../common/design/components.js';
 
 export class PingCommand extends Command {
   public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -69,34 +75,67 @@ export class PingCommand extends Command {
     // Get color based on average latency
     const avgLatency = (wsLatency + restLatency + sqlLatency) / 3;
     let color = this.container.colors.success;
-    if (avgLatency > 200) color = this.container.colors.warning;
-    if (avgLatency > 500) color = this.container.colors.error;
+    let statusEmoji = '🟢';
+    let statusText = '良好';
 
-    // Complete with results
-    const resultEmbed = this.container.embedBuilder.create({
-      title: '🏓 Pong!',
-      color,
-      fields: [
-        createField(
-          'WebSocket',
-          `\`${wsLatency}ms\``,
-          true
-        ),
-        createField(
-          'REST API',
-          `\`${restLatency}ms\``,
-          true
-        ),
-        createField(
-          'データベース',
-          `\`${sqlLatency}ms\``,
-          true
-        ),
-      ],
-      footer: 'レイテンシ測定完了',
-      timestamp: true,
+    if (avgLatency > 200) {
+      color = this.container.colors.warning;
+      statusEmoji = '🟡';
+      statusText = '普通';
+    }
+    if (avgLatency > 500) {
+      color = this.container.colors.error;
+      statusEmoji = '🔴';
+      statusText = '遅延';
+    }
+
+    // Complete with results using Components v2
+    const headerSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `# 🏓 Pong!\n${statusEmoji} **ステータス:** ${statusText}`
+      )
+    );
+
+    const separator1 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const latencySection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `📊 **レイテンシ測定結果**\n\n` +
+        `🌐 **WebSocket:** \`${wsLatency}ms\`\n` +
+        `🔗 **REST API:** \`${restLatency}ms\`\n` +
+        `💾 **データベース:** \`${sqlLatency}ms\`\n\n` +
+        `📈 **平均レイテンシ:** \`${Math.round(avgLatency)}ms\``
+      )
+    );
+
+    const separator2 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const infoSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `💡 **レイテンシについて**\n` +
+        `• 🟢 \`0-200ms\`: 良好\n` +
+        `• 🟡 \`200-500ms\`: 普通\n` +
+        `• 🔴 \`500ms+\`: 遅延`
+      )
+    );
+
+    const container = new ContainerBuilder()
+      .setAccentColor(color)
+      .addSectionComponents(headerSection)
+      .addSeparatorComponents(separator1)
+      .addSectionComponents(latencySection)
+      .addSeparatorComponents(separator2)
+      .addSectionComponents(infoSection);
+
+    await interaction.editReply({
+      content: '',
+      embeds: [],
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
     });
-
-    await progress.update(resultEmbed);
   }
 }
