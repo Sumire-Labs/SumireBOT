@@ -1,13 +1,23 @@
 /**
  * Create Ticket Interaction Handler
- * Handles ticket creation button clicks
+ * Handles ticket creation button clicks with Components v2
  */
 
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
 import type { ButtonInteraction } from 'discord.js';
-import { ChannelType, PermissionFlagsBits, MessageFlags } from 'discord.js';
+import {
+  ChannelType,
+  PermissionFlagsBits,
+  MessageFlags,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ActionRowBuilder,
+} from 'discord.js';
 import { ticketSettingsService, ticketService } from '../../common/database/client.js';
-import { ButtonPresets, createButtonRow } from '../../common/design/buttons.js';
 
 export class CreateTicketHandler extends InteractionHandler {
   public constructor(ctx: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
@@ -115,19 +125,60 @@ export class CreateTicketHandler extends InteractionHandler {
       status: 'open',
     });
 
-    // Send welcome message in ticket channel
-    const welcomeEmbed = this.container.embedBuilder.create({
-      title: 'チケット作成',
-      description: 'チケットが作成されました。\n\nスタッフが対応するまでお待ちください。',
-      color: this.container.colors.primary,
-      footer: `チケットID #${ticket.id}`,
-      timestamp: true,
-    });
+    // Send welcome message in ticket channel with Components v2
+    const welcomeHeader = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('# 🎫 チケット作成')
+    );
+
+    const separator1 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const welcomeInfo = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `チケットが作成されました。\n\n` +
+        `👤 **作成者:** <@${userId}>\n` +
+        `🆔 **チケットID:** #${ticket.id}\n` +
+        `📅 **作成日時:** <t:${Math.floor(Date.now() / 1000)}:F>\n\n` +
+        `スタッフが対応するまでお待ちください。\n` +
+        `質問や問題の詳細を記載してください。`
+      )
+    );
+
+    const separator2 = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(1);
+
+    const instructionsSection = new SectionBuilder().addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `💡 **ヒント**\n` +
+        `• できるだけ詳しく状況を説明してください\n` +
+        `• スクリーンショットがあると理解しやすくなります\n` +
+        `• 問題が解決したら、下のボタンでチケットをクローズできます`
+      )
+    );
+
+    const welcomeContainer = new ContainerBuilder()
+      .setAccentColor(this.container.colors.primary)
+      .addSectionComponents(welcomeHeader)
+      .addSeparatorComponents(separator1)
+      .addSectionComponents(welcomeInfo)
+      .addSeparatorComponents(separator2)
+      .addSectionComponents(instructionsSection);
+
+    // Create close button
+    const closeButton = new ButtonBuilder()
+      .setCustomId('ticket_close')
+      .setLabel('チケットをクローズ')
+      .setStyle(ButtonStyle.Danger)
+      .setEmoji('🔒');
+
+    const buttonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(closeButton);
 
     await ticketChannel.send({
       content: settings.notifyRoleId ? `<@${userId}> <@&${settings.notifyRoleId}>` : `<@${userId}>`,
-      embeds: [welcomeEmbed],
-      components: [createButtonRow(ButtonPresets.closeTicket())],
+      components: [welcomeContainer, buttonRow],
+      flags: MessageFlags.IsComponentsV2,
     });
 
     // Send success message
