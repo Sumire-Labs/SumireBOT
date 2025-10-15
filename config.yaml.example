@@ -12,7 +12,7 @@ status: online  # online, idle, dnd, invisible
 # Bot Activity
 activity:
   type: playing  # playing, streaming, listening, watching, competing
-  name: "v0.1.2-beta"
+  name: "v0.1.3-beta"
 
 # Feature Toggles
 features:
