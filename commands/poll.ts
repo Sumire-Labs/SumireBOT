@@ -125,20 +125,44 @@ export class PollCommand extends Command {
     }
 
     if (options.length < 2) {
-      const embed = this.container.embedBuilder.error(
-        'エラー',
-        '最低2つの選択肢が必要です。'
+      const errorHeader = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('# ❌ エラー')
       );
-      await interaction.reply({ embeds: [embed], flags: [4] }); // Ephemeral
+      const errorSep = new SeparatorBuilder().setDivider(true).setSpacing(1);
+      const errorInfo = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('最低2つの選択肢が必要です。')
+      );
+      const errorContainer = new ContainerBuilder()
+        .setAccentColor(this.container.colors.error)
+        .addSectionComponents(errorHeader)
+        .addSeparatorComponents(errorSep)
+        .addSectionComponents(errorInfo);
+
+      await interaction.reply({
+        components: [errorContainer],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+      });
       return;
     }
 
     if (options.length > 10) {
-      const embed = this.container.embedBuilder.error(
-        'エラー',
-        '選択肢は最大10個までです。'
+      const errorHeader = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('# ❌ エラー')
       );
-      await interaction.reply({ embeds: [embed], flags: [4] }); // Ephemeral
+      const errorSep = new SeparatorBuilder().setDivider(true).setSpacing(1);
+      const errorInfo = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('選択肢は最大10個までです。')
+      );
+      const errorContainer = new ContainerBuilder()
+        .setAccentColor(this.container.colors.error)
+        .addSectionComponents(errorHeader)
+        .addSeparatorComponents(errorSep)
+        .addSectionComponents(errorInfo);
+
+      await interaction.reply({
+        components: [errorContainer],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+      });
       return;
     }
 

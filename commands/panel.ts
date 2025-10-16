@@ -41,21 +41,45 @@ export class PanelCommand extends Command {
 
     // Check if panel feature is enabled
     if (!this.container.config.features.panel) {
-      const embed = this.container.embedBuilder.error(
-        'エラー',
-        'Panel機能が無効になっています。'
+      const errorHeader = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('# ❌ エラー')
       );
-      await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+      const errorSep = new SeparatorBuilder().setDivider(true).setSpacing(1);
+      const errorInfo = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('Panel機能が無効になっています。')
+      );
+      const errorContainer = new ContainerBuilder()
+        .setAccentColor(this.container.colors.error)
+        .addSectionComponents(errorHeader)
+        .addSeparatorComponents(errorSep)
+        .addSectionComponents(errorInfo);
+
+      await interaction.reply({
+        components: [errorContainer],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+      });
       return;
     }
 
     // Check if pterodactyl config exists
     if (!this.container.config.pterodactyl) {
-      const embed = this.container.embedBuilder.error(
-        'エラー',
-        'Pterodactylの設定がされていません。'
+      const errorHeader = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('# ❌ エラー')
       );
-      await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+      const errorSep = new SeparatorBuilder().setDivider(true).setSpacing(1);
+      const errorInfo = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('Pterodactylの設定がされていません。')
+      );
+      const errorContainer = new ContainerBuilder()
+        .setAccentColor(this.container.colors.error)
+        .addSectionComponents(errorHeader)
+        .addSeparatorComponents(errorSep)
+        .addSectionComponents(errorInfo);
+
+      await interaction.reply({
+        components: [errorContainer],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+      });
       return;
     }
 
@@ -66,11 +90,23 @@ export class PanelCommand extends Command {
       const servers = await client.getServers();
 
       if (servers.length === 0) {
-        const embed = this.container.embedBuilder.warning(
-          '警告',
-          'サーバーが見つかりませんでした。'
+        const warningHeader = new SectionBuilder().addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('# ⚠️ 警告')
         );
-        await interaction.editReply({ embeds: [embed] });
+        const warningSep = new SeparatorBuilder().setDivider(true).setSpacing(1);
+        const warningInfo = new SectionBuilder().addTextDisplayComponents(
+          new TextDisplayBuilder().setContent('サーバーが見つかりませんでした。')
+        );
+        const warningContainer = new ContainerBuilder()
+          .setAccentColor(this.container.colors.warning)
+          .addSectionComponents(warningHeader)
+          .addSeparatorComponents(warningSep)
+          .addSectionComponents(warningInfo);
+
+        await interaction.editReply({
+          components: [warningContainer],
+          flags: MessageFlags.IsComponentsV2,
+        });
         return;
       }
 
@@ -119,11 +155,23 @@ export class PanelCommand extends Command {
       });
     } catch (error) {
       console.error('Panel command error:', error);
-      const embed = this.container.embedBuilder.error(
-        'エラー',
-        'サーバー一覧の取得に失敗しました。\nAPI設定を確認してください。'
+      const errorHeader = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('# ❌ エラー')
       );
-      await interaction.editReply({ embeds: [embed] });
+      const errorSep = new SeparatorBuilder().setDivider(true).setSpacing(1);
+      const errorInfo = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('サーバー一覧の取得に失敗しました。\nAPI設定を確認してください。')
+      );
+      const errorContainer = new ContainerBuilder()
+        .setAccentColor(this.container.colors.error)
+        .addSectionComponents(errorHeader)
+        .addSeparatorComponents(errorSep)
+        .addSectionComponents(errorInfo);
+
+      await interaction.editReply({
+        components: [errorContainer],
+        flags: MessageFlags.IsComponentsV2,
+      });
     }
   }
 }

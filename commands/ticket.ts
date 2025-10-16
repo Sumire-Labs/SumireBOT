@@ -17,7 +17,6 @@ import {
   MessageFlags,
 } from 'discord.js';
 import { ticketSettingsService } from '../common/database/client.js';
-import { createProgressTracker } from '../common/design/progress.js';
 
 export class TicketCommand extends Command {
   public constructor(context: Command.LoaderContext, options: Command.Options) {
@@ -70,24 +69,8 @@ export class TicketCommand extends Command {
     const channel = interaction.options.getChannel('channel', true);
     const role = interaction.options.getRole('role', true);
 
-    // Create progress tracker
-    const progress = createProgressTracker(
-      interaction,
-      [
-        {
-          title: '設定を確認中...',
-        },
-        {
-          title: 'チケットカテゴリを作成中...',
-        },
-        {
-          title: 'パネルを設置中...',
-        },
-      ],
-      this.container.embedBuilder
-    );
-
-    await progress.start();
+    // Defer reply
+    await interaction.deferReply();
 
     // Check permissions
     const guild = interaction.guild;
@@ -95,12 +78,11 @@ export class TicketCommand extends Command {
 
     const me = guild.members.me;
     if (!me?.permissions.has([PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManageRoles])) {
-      await progress.fail('権限が不足しています');
+      await interaction.editReply({
+        content: '❌ 権限が不足しています。BOTにチャンネル管理とロール管理の権限を付与してください。',
+      });
       return;
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    await progress.next();
 
     // Create or get ticket category
     let category = guild.channels.cache.find(
@@ -123,9 +105,6 @@ export class TicketCommand extends Command {
         ],
       });
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    await progress.next();
 
     // Create ticket panel with Components v2
     const headerSection = new SectionBuilder().addTextDisplayComponents(
@@ -181,8 +160,6 @@ export class TicketCommand extends Command {
       panelMessageId: panelMessage.id,
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
     // Complete - Build success message with Components v2
     const successHeader = new SectionBuilder().addTextDisplayComponents(
       new TextDisplayBuilder().setContent('# ✅ チケットパネルを設置しました')
@@ -207,15 +184,11 @@ export class TicketCommand extends Command {
       .addSeparatorComponents(successSep)
       .addSectionComponents(successInfo);
 
-    if (interaction.channel?.isTextBased() && 'send' in interaction.channel) {
-      await interaction.channel.send({
-        components: [successContainer],
-        flags: MessageFlags.IsComponentsV2,
-      });
-    }
-
     await interaction.editReply({
-      content: '✅ セットアップが完了しました！',
+      content: '',
+      embeds: [],
+      components: [successContainer],
+      flags: MessageFlags.IsComponentsV2,
     });
   }
 }

@@ -11,7 +11,6 @@ import {
   SeparatorBuilder,
   MessageFlags,
 } from 'discord.js';
-import { createProgressTracker } from '../common/design/progress.js';
 import { measureDatabaseLatency } from '../common/database/client.js';
 
 export class PingCommand extends Command {
@@ -32,45 +31,19 @@ export class PingCommand extends Command {
   }
 
   public override async chatInputRun(interaction: Command.ChatInputCommandInteraction) {
-    // Create progress tracker with steps
-    const progress = createProgressTracker(
-      interaction,
-      [
-        {
-          title: 'WebSocketレイテンシを測定中...',
-        },
-        {
-          title: 'REST APIレイテンシを測定中...',
-        },
-        {
-          title: 'SQLレイテンシを測定中...',
-        },
-      ],
-      this.container.embedBuilder
-    );
-
-    // Start progress
-    await progress.start();
+    // Defer reply
+    await interaction.deferReply();
 
     // Measure WebSocket latency
     const wsLatency = this.container.client.ws.ping;
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Move to next step
-    await progress.next();
 
     // Measure REST API latency
     const restStart = Date.now();
     await this.container.client.rest.get('/gateway');
     const restLatency = Date.now() - restStart;
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Move to next step
-    await progress.next();
 
     // Measure SQL latency
     const sqlLatency = await measureDatabaseLatency();
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Get color based on average latency
     const avgLatency = (wsLatency + restLatency + sqlLatency) / 3;

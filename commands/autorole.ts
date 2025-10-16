@@ -95,31 +95,67 @@ export class AutoRoleCommand extends Command {
 
     // Check if bot can manage this role
     if (role.position >= me.roles.highest.position) {
-      const embed = this.container.embedBuilder.error(
-        'エラーが発生しました',
-        'このロールはBotの最高ロール以上のため、付与できません。'
+      const errorHeader = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('# ❌ エラーが発生しました')
       );
-      await interaction.editReply({ embeds: [embed] });
+      const errorSep = new SeparatorBuilder().setDivider(true).setSpacing(1);
+      const errorInfo = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('このロールはBotの最高ロール以上のため、付与できません。')
+      );
+      const errorContainer = new ContainerBuilder()
+        .setAccentColor(this.container.colors.error)
+        .addSectionComponents(errorHeader)
+        .addSeparatorComponents(errorSep)
+        .addSectionComponents(errorInfo);
+
+      await interaction.editReply({
+        components: [errorContainer],
+        flags: MessageFlags.IsComponentsV2,
+      });
       return;
     }
 
     // Check if role is manageable
     if (role.managed) {
-      const embed = this.container.embedBuilder.error(
-        'エラーが発生しました',
-        'このロールは統合によって管理されているため、付与できません。'
+      const errorHeader = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('# ❌ エラーが発生しました')
       );
-      await interaction.editReply({ embeds: [embed] });
+      const errorSep = new SeparatorBuilder().setDivider(true).setSpacing(1);
+      const errorInfo = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('このロールは統合によって管理されているため、付与できません。')
+      );
+      const errorContainer = new ContainerBuilder()
+        .setAccentColor(this.container.colors.error)
+        .addSectionComponents(errorHeader)
+        .addSeparatorComponents(errorSep)
+        .addSectionComponents(errorInfo);
+
+      await interaction.editReply({
+        components: [errorContainer],
+        flags: MessageFlags.IsComponentsV2,
+      });
       return;
     }
 
     // Check bot permissions
     if (!me.permissions.has(PermissionFlagsBits.ManageRoles)) {
-      const embed = this.container.embedBuilder.error(
-        'エラーが発生しました',
-        'ロールを管理する権限がありません。'
+      const errorHeader = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('# ❌ エラーが発生しました')
       );
-      await interaction.editReply({ embeds: [embed] });
+      const errorSep = new SeparatorBuilder().setDivider(true).setSpacing(1);
+      const errorInfo = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('ロールを管理する権限がありません。')
+      );
+      const errorContainer = new ContainerBuilder()
+        .setAccentColor(this.container.colors.error)
+        .addSectionComponents(errorHeader)
+        .addSeparatorComponents(errorSep)
+        .addSectionComponents(errorInfo);
+
+      await interaction.editReply({
+        components: [errorContainer],
+        flags: MessageFlags.IsComponentsV2,
+      });
       return;
     }
 
