@@ -14,6 +14,7 @@
   "author": "",
   "license": "LGPL-3.0",
   "dependencies": {
+    "@discordjs/builders": "^1.12.2",
     "@sapphire/framework": "^5.3.3",
     "@sapphire/plugin-logger": "^4.0.3",
     "@sapphire/utilities": "^3.17.3",
