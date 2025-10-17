@@ -1,4 +1,4 @@
-# SumireBOT 
+# SumireBOT
 
 A modern Discord bot built with TypeScript, Bun, and Sapphire Framework.
 
