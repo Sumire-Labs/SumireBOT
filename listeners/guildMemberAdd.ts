@@ -28,6 +28,10 @@ export class GuildMemberAddListener extends Listener {
         try {
           const role = member.guild.roles.cache.get(roleId);
           if (role && member.guild.members.me?.permissions.has('ManageRoles')) {
+            if (!role.editable) {
+              console.warn(`[AutoRole] Failed to assign role ${role.name} (${role.id}) to ${member.user.tag}: Role is higher than bot's highest role.`);
+              return;
+            }
             await member.roles.add(role);
           }
         } catch (error) {

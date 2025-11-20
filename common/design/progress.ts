@@ -9,6 +9,7 @@ import type {
   EmbedBuilder,
   APIEmbed,
 } from 'discord.js';
+import { MessageFlags } from 'discord.js';
 import { M3EmbedBuilder } from './embeds.js';
 
 export interface ProgressStep {
@@ -42,7 +43,7 @@ export class ProgressTracker {
       this.steps[0].description
     );
 
-    await this.interaction.deferReply({ ephemeral: true });
+    await this.interaction.deferReply({ flags: MessageFlags.Ephemeral });
     this.message = await this.interaction.editReply({
       embeds: [embed],
     });

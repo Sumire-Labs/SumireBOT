@@ -2,7 +2,9 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    "lib": ["ESNext"],
+    "lib": [
+      "ESNext"
+    ],
     "moduleResolution": "bundler",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -12,15 +14,29 @@
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "types": ["bun-types"],
+    "types": [
+      "bun"
+    ],
     "baseUrl": ".",
     "paths": {
-      "@common/*": ["common/*"],
-      "@commands/*": ["commands/*"],
-      "@listeners/*": ["listeners/*"],
-      "@lib/*": ["lib/*"]
+      "@common/*": [
+        "common/*"
+      ],
+      "@commands/*": [
+        "commands/*"
+      ],
+      "@listeners/*": [
+        "listeners/*"
+      ],
+      "@lib/*": [
+        "lib/*"
+      ]
     }
   },
-  "include": ["./**/*"],
-  "exclude": ["node_modules"]
+  "include": [
+    "./**/*"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
