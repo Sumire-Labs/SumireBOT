@@ -1,6 +1,6 @@
 {
   "name": "sumirebot",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "A modern Discord bot",
   "main": "index.ts",
   "type": "module",
@@ -10,7 +10,13 @@
     "db:studio": "drizzle-kit studio",
     "lint": "eslint . --ext .ts,.tsx"
   },
-  "keywords": ["discord", "bot", "typescript", "bun", "sapphire"],
+  "keywords": [
+    "discord",
+    "bot",
+    "typescript",
+    "bun",
+    "sapphire"
+  ],
   "author": "",
   "license": "LGPL-3.0",
   "dependencies": {
