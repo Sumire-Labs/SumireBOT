@@ -14,6 +14,7 @@ export class LoggerCommand extends Command {
       ...options,
       name: 'logger',
       description: 'ロガーを設定します。',
+      requiredUserPermissions: ['Administrator'],
     });
   }
 
@@ -34,7 +35,7 @@ export class LoggerCommand extends Command {
                 .addChannelTypes(ChannelType.GuildText)
             )
         )
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     );
   }
 

@@ -16,6 +16,7 @@ export class TicketCommand extends Command {
       ...options,
       name: 'ticket',
       description: 'Ticketツールのパネルを設置します。',
+      requiredUserPermissions: ['Administrator'],
     });
   }
 
@@ -42,7 +43,7 @@ export class TicketCommand extends Command {
                 .setRequired(true)
             )
         )
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     );
   }
 

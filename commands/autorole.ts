@@ -13,6 +13,7 @@ export class AutoRoleCommand extends Command {
       ...options,
       name: 'autorole',
       description: '自動ロール付与を設定します。',
+      requiredUserPermissions: ['Administrator'],
     });
   }
 
@@ -57,7 +58,7 @@ export class AutoRoleCommand extends Command {
                 )
             )
         )
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     );
   }
 
