@@ -58,12 +58,22 @@ export class CreateTicketHandler extends InteractionHandler {
     // Check if user already has an open ticket
     const existingTicket = await ticketService.getByUserId(userId, guildId);
     if (existingTicket) {
-      const embed = this.container.embedBuilder.warning(
-        '警告',
-        `既にチケットを作成済みです: <#${existingTicket.channelId}>`
-      );
-      await interaction.editReply({ embeds: [embed] });
-      return;
+      // Check if channel actually exists
+      const ticketChannel = await guild.channels.fetch(existingTicket.channelId).catch(() => null);
+
+      if (ticketChannel) {
+        // Ticket exists and channel exists
+        const embed = this.container.embedBuilder.warning(
+          '警告',
+          `既にチケットを作成済みです: <#${existingTicket.channelId}>`
+        );
+        await interaction.editReply({ embeds: [embed] });
+        return;
+      } else {
+        // Ticket exists in DB but channel is gone (stale)
+        // Close the stale ticket and continue to create a new one
+        await ticketService.close(existingTicket.channelId);
+      }
     }
 
     const me = guild.members.me;
