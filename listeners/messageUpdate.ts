@@ -34,7 +34,10 @@ export class MessageUpdateListener extends Listener {
     }
 
     if (!newMessage.guild || newMessage.author?.bot) return;
-    if (oldMessage.content === newMessage.content) return;
+    const oldContent = oldMessage.content || '';
+    const newContent = newMessage.content || '';
+
+    if (oldContent === newContent) return;
 
     const guildId = newMessage.guild.id;
 

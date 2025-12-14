@@ -6,7 +6,7 @@
 import { Listener } from '@sapphire/framework';
 import type { Message } from 'discord.js';
 import { loggerSettingsService } from '../common/database/client.js';
-import { createField } from '../common/design/components.js';
+import { createField, truncate } from '../common/design/components.js';
 
 export class MessageDeleteListener extends Listener {
   public constructor(context: Listener.LoaderContext, options: Listener.Options) {
@@ -52,7 +52,7 @@ export class MessageDeleteListener extends Listener {
         ),
         createField(
           '内容',
-          message.content || '*内容なし*',
+          truncate(message.content || '*内容なし*', 1000),
           false
         ),
       ],
