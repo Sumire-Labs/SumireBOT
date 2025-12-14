@@ -4,7 +4,7 @@
  */
 
 import { Command } from '@sapphire/framework';
-import { SlashCommandBuilder, StringSelectMenuBuilder, ActionRowBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, StringSelectMenuBuilder, ActionRowBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
 import { PterodactylClient } from '../common/pterodactyl/client.js';
 
 export class PanelCommand extends Command {
@@ -13,6 +13,7 @@ export class PanelCommand extends Command {
       ...options,
       name: 'panel',
       description: 'Pterodactylパネルのサーバー管理',
+      requiredUserPermissions: ['Administrator'],
     });
   }
 
@@ -21,7 +22,7 @@ export class PanelCommand extends Command {
       .setName(this.name)
       .setDescription(this.description)
       .setDMPermission(false)
-      .setDefaultMemberPermissions('0'); // Administrator only
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
     registry.registerChatInputCommand(command);
   }
