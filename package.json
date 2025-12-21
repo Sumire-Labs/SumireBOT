@@ -24,7 +24,7 @@
     "@sapphire/plugin-logger": "^4.0.3",
     "@sapphire/utilities": "^3.17.3",
     "discord.js": "^14.17.3",
-    "drizzle-orm": "^0.44.6",
+    "drizzle-orm": "^0.45.1",
     "js-yaml": "^4.1.0",
     "zod": "^4.1.12"
   },
