@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Optional, Union, cast
 
 import discord
 import wavelink
@@ -23,9 +23,9 @@ if TYPE_CHECKING:
 
 logger = get_logger("sumire.cogs.music")
 
-# Spotify URL 正規表現
+# Spotify URL 正規表現（/intl-ja/ などのロケールプレフィックスに対応）
 SPOTIFY_REGEX = re.compile(
-    r"https?://open\.spotify\.com/(track|album|playlist)/([a-zA-Z0-9]+)"
+    r"https?://open\.spotify\.com/(?:intl-[a-z]{2}/)?(track|album|playlist)/([a-zA-Z0-9]+)"
 )
 
 
@@ -64,6 +64,38 @@ class Music(commands.Cog):
     async def on_wavelink_node_ready(self, payload: wavelink.NodeReadyEventPayload) -> None:
         """Wavelink ノード準備完了"""
         logger.info(f"Wavelink ノード準備完了: {payload.node.identifier}")
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(
+        self,
+        member: discord.Member,
+        before: discord.VoiceState,
+        after: discord.VoiceState
+    ) -> None:
+        """ボイスステート更新時（Bot切断検知）"""
+        # Bot自身の状態変更のみ処理
+        if member.id != self.bot.user.id:
+            return
+
+        # VCから切断された場合（before.channel あり → after.channel なし）
+        if before.channel is not None and after.channel is None:
+            guild_id = member.guild.id
+            logger.info(f"VC切断を検知: guild_id={guild_id}")
+
+            # ループモードをリセット
+            if guild_id in self.loop_mode:
+                del self.loop_mode[guild_id]
+
+            # 自動退出タイマーをキャンセル
+            if guild_id in self._auto_leave_tasks:
+                self._auto_leave_tasks[guild_id].cancel()
+                del self._auto_leave_tasks[guild_id]
+
+            # キューのクリア（プレイヤーがまだ存在する場合）
+            player = cast(wavelink.Player, member.guild.voice_client)
+            if player:
+                player.queue.clear()
+                logger.info(f"キューをクリア: guild_id={guild_id}")
 
     @commands.Cog.listener()
     async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None:
@@ -370,35 +402,53 @@ class Music(commands.Cog):
 
         return player
 
-    async def _search_track(self, query: str) -> Optional[wavelink.Playable]:
-        """曲を検索"""
-        # Spotify URL の処理（プレフィックスなしでそのまま渡す）
+    async def _search_tracks(self, query: str) -> tuple[list[wavelink.Playable], Optional[str], Optional[str]]:
+        """
+        曲を検索
+
+        Returns:
+            tuple: (トラックリスト, プレイリスト名またはNone, タイプ "track"|"playlist"|"album"|None)
+        """
+        # Spotify URL の処理
         spotify_match = SPOTIFY_REGEX.match(query)
         if spotify_match:
+            spotify_type = spotify_match.group(1)  # track, album, playlist
             try:
-                logger.info(f"Spotify URL検索: {query}")
-                tracks = await wavelink.Playable.search(query)
-                if tracks:
-                    return tracks[0] if isinstance(tracks, list) else tracks
+                logger.info(f"Spotify {spotify_type} 検索: {query}")
+                result = await wavelink.Playable.search(query)
+
+                # プレイリスト/アルバムの場合
+                if isinstance(result, wavelink.Playlist):
+                    tracks = list(result.tracks)
+                    playlist_name = result.name or f"Spotify {spotify_type}"
+                    logger.info(f"プレイリスト取得: {playlist_name} ({len(tracks)}曲)")
+                    return (tracks, playlist_name, spotify_type)
+
+                # 単一トラックの場合
+                if result:
+                    tracks = result if isinstance(result, list) else [result]
+                    return (tracks[:1], None, "track")
+
             except Exception as e:
-                logger.warning(f"Spotify URL検索エラー: {e}")
-                return None
+                logger.warning(f"Spotify検索エラー: {e}")
+                return ([], None, None)
 
         # SoundCloud検索（曲名で検索）
         try:
             logger.info(f"SoundCloud検索: {query}")
-            tracks = await wavelink.Playable.search(f"scsearch:{query}")
-            if tracks:
-                return tracks[0] if isinstance(tracks, list) else tracks
+            result = await wavelink.Playable.search(f"scsearch:{query}")
+            if result:
+                tracks = result if isinstance(result, list) else [result]
+                return (tracks[:1], None, "track")
         except Exception as e:
             logger.error(f"SoundCloud検索エラー: {e}")
 
-        return None
+        return ([], None, None)
 
     # ==================== コマンド ====================
 
     @app_commands.command(name="play", description="曲を再生またはキューに追加します")
-    @app_commands.describe(query="曲名または Spotify URL")
+    @app_commands.describe(query="曲名または Spotify URL（プレイリスト/アルバムも対応）")
     async def play(self, interaction: discord.Interaction, query: str) -> None:
         """曲を再生"""
         player = await self._ensure_voice(interaction)
@@ -411,8 +461,9 @@ class Music(commands.Cog):
         is_spotify = bool(SPOTIFY_REGEX.match(query))
 
         # 曲を検索
-        track = await self._search_track(query)
-        if not track:
+        tracks, playlist_name, content_type = await self._search_tracks(query)
+
+        if not tracks:
             # Spotify URL の場合、SoundCloudで見つからなかった可能性を示唆
             if is_spotify:
                 embed = self.embed_builder.error(
@@ -430,7 +481,13 @@ class Music(commands.Cog):
             await interaction.followup.send(embed=embed)
             return
 
-        # ソース情報を取得
+        # プレイリスト/アルバムの場合
+        if playlist_name and len(tracks) > 1:
+            await self._handle_playlist(interaction, player, tracks, playlist_name, content_type, is_spotify)
+            return
+
+        # 単一トラックの場合
+        track = tracks[0]
         source_info = self._get_source_info(track, is_spotify)
 
         # キューに追加
@@ -469,6 +526,77 @@ class Music(commands.Cog):
         embed.add_field(name="長さ", value=self._format_duration(track.length), inline=True)
         if track.artwork:
             embed.set_thumbnail(url=track.artwork)
+
+        await interaction.followup.send(embed=embed)
+
+    async def _handle_playlist(
+        self,
+        interaction: discord.Interaction,
+        player: wavelink.Player,
+        tracks: list[wavelink.Playable],
+        playlist_name: str,
+        content_type: str,
+        is_spotify: bool
+    ) -> None:
+        """プレイリスト/アルバムの処理"""
+        # 全曲をキューに追加
+        added_count = 0
+        for track in tracks:
+            player.queue.put(track)
+            added_count += 1
+
+        logger.info(f"プレイリストをキューに追加: {playlist_name} ({added_count}曲)")
+
+        # 総再生時間を計算
+        total_duration = sum(t.length for t in tracks)
+
+        # タイプに応じた表示
+        type_display = "アルバム" if content_type == "album" else "プレイリスト"
+        source_info = "Spotify → SoundCloud" if is_spotify else "SoundCloud"
+
+        # 再生中でなければ再生開始
+        if not player.playing and not player.queue.is_empty:
+            try:
+                next_track = player.queue.get()
+                await player.play(next_track)
+                logger.info(f"再生開始: {next_track.title}")
+
+                embed = self.embed_builder.create(
+                    title=f"📋 {type_display}を追加",
+                    description=f"**{playlist_name}**",
+                    color=self.config.success_color,
+                )
+                embed.add_field(name="曲数", value=f"{added_count} 曲", inline=True)
+                embed.add_field(name="総時間", value=self._format_duration(total_duration), inline=True)
+                embed.add_field(name="ソース", value=source_info, inline=True)
+                embed.add_field(name="最初の曲", value=next_track.title, inline=False)
+                embed.set_footer(text="再生が開始されると「Now Playing」が表示されます")
+
+                # サムネイル（最初のトラックのアートワーク）
+                first_artwork = getattr(tracks[0], 'artwork', None) if tracks else None
+                if first_artwork:
+                    embed.set_thumbnail(url=first_artwork)
+
+            except Exception as e:
+                logger.error(f"プレイリスト再生開始エラー: {e}")
+                embed = self.embed_builder.error(
+                    title="再生エラー",
+                    description=f"プレイリストの再生を開始できませんでした。\n`{e}`"
+                )
+        else:
+            # 既に再生中の場合
+            embed = self.embed_builder.success(
+                title=f"{type_display}をキューに追加",
+                description=f"**{playlist_name}**"
+            )
+            embed.add_field(name="追加曲数", value=f"{added_count} 曲", inline=True)
+            embed.add_field(name="総時間", value=self._format_duration(total_duration), inline=True)
+            embed.add_field(name="ソース", value=source_info, inline=True)
+            embed.add_field(name="キュー", value=f"残り {len(player.queue)} 曲", inline=True)
+
+            first_artwork = getattr(tracks[0], 'artwork', None) if tracks else None
+            if first_artwork:
+                embed.set_thumbnail(url=first_artwork)
 
         await interaction.followup.send(embed=embed)
 
