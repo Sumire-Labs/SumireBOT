@@ -631,15 +631,15 @@ class Music(commands.Cog):
         )
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="stop", description="再生を停止してキューをクリアします")
-    async def stop(self, interaction: discord.Interaction) -> None:
-        """再生停止"""
+    @app_commands.command(name="leave", description="再生を停止してボイスチャンネルから退出します")
+    async def leave(self, interaction: discord.Interaction) -> None:
+        """再生停止 & 退出"""
         player = await self._get_player(interaction)
 
         if not player:
             embed = self.embed_builder.error(
                 title="エラー",
-                description="現在再生中ではありません。"
+                description="現在ボイスチャンネルに接続していません。"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
@@ -662,14 +662,19 @@ class Music(commands.Cog):
         if guild_id in self.loop_mode:
             del self.loop_mode[guild_id]
 
+        # 自動退出タイマーをキャンセル
+        if guild_id in self._auto_leave_tasks:
+            self._auto_leave_tasks[guild_id].cancel()
+            del self._auto_leave_tasks[guild_id]
+
+        # VCから切断
+        await player.disconnect()
+
         embed = self.embed_builder.success(
-            title="停止",
-            description="再生を停止し、キューをクリアしました。"
+            title="退出",
+            description="再生を停止し、ボイスチャンネルから退出しました。"
         )
         await interaction.response.send_message(embed=embed)
-
-        # 自動退出タイマーを開始
-        self._start_auto_leave_timer(guild_id, player)
 
     @app_commands.command(name="loop", description="ループモードを切り替えます")
     @app_commands.describe(mode="ループモード")
