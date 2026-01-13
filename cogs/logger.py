@@ -1,6 +1,7 @@
 """
 ログシステム Cog
 サーバーイベントをログチャンネルに記録
+Components V2 (LayoutView) を使用
 """
 from __future__ import annotations
 
@@ -14,6 +15,19 @@ from utils.database import Database
 from utils.embeds import EmbedBuilder
 from utils.checks import Checks
 from utils.logging import get_logger
+from views.log_views import (
+    LogMessageDeleteView,
+    LogMessageEditView,
+    LogMemberJoinView,
+    LogMemberLeaveView,
+    LogMemberBanView,
+    LogChannelView,
+    LogRoleView,
+    LogBulkDeleteView,
+    LogMemberTimeoutView,
+    LogChannelUpdateView,
+    LogRoleUpdateView
+)
 
 logger = get_logger("sumire.cogs.logger")
 
@@ -126,19 +140,25 @@ class Logger(commands.Cog):
         if not channel:
             return
 
-        content = message.content or "*内容なし*"
-        if len(content) > 1024:
-            content = content[:1021] + "..."
-
-        embed = self.embed_builder.log_message_delete(message, content)
-
-        # 添付ファイル情報
+        content = message.content or ""
+        # 添付ファイル情報を追加
         if message.attachments:
-            attachments = "\n".join([a.filename for a in message.attachments])
-            embed.add_field(name="添付ファイル", value=attachments[:1024], inline=False)
+            attachments = "\n".join([f"📎 {a.filename}" for a in message.attachments])
+            if content:
+                content += f"\n\n{attachments}"
+            else:
+                content = attachments
+
+        view = LogMessageDeleteView(
+            author_name=str(message.author),
+            author_avatar=message.author.display_avatar.url,
+            author_id=message.author.id,
+            channel_mention=message.channel.mention,
+            content=content
+        )
 
         try:
-            await channel.send(embed=embed)
+            await channel.send(view=view)
         except discord.Forbidden:
             logger.warning(f"ログ送信権限なし: guild_id={message.guild.id}")
 
@@ -159,10 +179,18 @@ class Logger(commands.Cog):
         if not channel:
             return
 
-        embed = self.embed_builder.log_message_edit(before, after)
+        view = LogMessageEditView(
+            author_name=str(after.author),
+            author_avatar=after.author.display_avatar.url,
+            author_id=after.author.id,
+            channel_mention=after.channel.mention,
+            jump_url=after.jump_url,
+            before_content=before.content or "",
+            after_content=after.content or ""
+        )
 
         try:
-            await channel.send(embed=embed)
+            await channel.send(view=view)
         except discord.Forbidden:
             logger.warning(f"ログ送信権限なし: guild_id={after.guild.id}")
 
@@ -183,19 +211,14 @@ class Logger(commands.Cog):
         if not channel:
             return
 
-        embed = self.embed_builder.create(
-            title="📝 メッセージ一括削除",
-            description=f"**{len(messages)}** 件のメッセージが削除されました",
-            color=self.config.error_color
-        )
-        embed.add_field(
-            name="チャンネル",
-            value=messages[0].channel.mention if messages[0].channel else "不明",
-            inline=True
+        channel_mention = messages[0].channel.mention if messages[0].channel else "不明"
+        view = LogBulkDeleteView(
+            message_count=len(messages),
+            channel_mention=channel_mention
         )
 
         try:
-            await channel.send(embed=embed)
+            await channel.send(view=view)
         except discord.Forbidden:
             logger.warning(f"ログ送信権限なし: guild_id={guild.id}")
 
@@ -211,10 +234,18 @@ class Logger(commands.Cog):
         if not channel:
             return
 
-        embed = self.embed_builder.log_member_join(member)
+        created_at = discord.utils.format_dt(member.created_at, "R")
+        view = LogMemberJoinView(
+            member_name=str(member),
+            member_mention=member.mention,
+            member_avatar=member.display_avatar.url,
+            member_id=member.id,
+            created_at=created_at,
+            member_count=member.guild.member_count
+        )
 
         try:
-            await channel.send(embed=embed)
+            await channel.send(view=view)
         except discord.Forbidden:
             logger.warning(f"ログ送信権限なし: guild_id={member.guild.id}")
 
@@ -228,10 +259,20 @@ class Logger(commands.Cog):
         if not channel:
             return
 
-        embed = self.embed_builder.log_member_leave(member)
+        joined_at = discord.utils.format_dt(member.joined_at, "R") if member.joined_at else "不明"
+        roles = [r.name for r in member.roles if r.name != "@everyone"]
+
+        view = LogMemberLeaveView(
+            member_name=str(member),
+            member_mention=member.mention,
+            member_avatar=member.display_avatar.url,
+            member_id=member.id,
+            joined_at=joined_at,
+            roles=roles
+        )
 
         try:
-            await channel.send(embed=embed)
+            await channel.send(view=view)
         except discord.Forbidden:
             logger.warning(f"ログ送信権限なし: guild_id={member.guild.id}")
 
@@ -245,10 +286,16 @@ class Logger(commands.Cog):
         if not channel:
             return
 
-        embed = self.embed_builder.log_member_ban(guild, user)
+        view = LogMemberBanView(
+            user_name=str(user),
+            user_mention=user.mention,
+            user_avatar=user.display_avatar.url,
+            user_id=user.id,
+            is_unban=False
+        )
 
         try:
-            await channel.send(embed=embed)
+            await channel.send(view=view)
         except discord.Forbidden:
             logger.warning(f"ログ送信権限なし: guild_id={guild.id}")
 
@@ -262,10 +309,16 @@ class Logger(commands.Cog):
         if not channel:
             return
 
-        embed = self.embed_builder.log_member_unban(guild, user)
+        view = LogMemberBanView(
+            user_name=str(user),
+            user_mention=user.mention,
+            user_avatar=user.display_avatar.url,
+            user_id=user.id,
+            is_unban=True
+        )
 
         try:
-            await channel.send(embed=embed)
+            await channel.send(view=view)
         except discord.Forbidden:
             logger.warning(f"ログ送信権限なし: guild_id={guild.id}")
 
@@ -281,33 +334,38 @@ class Logger(commands.Cog):
 
         # タイムアウトの検出
         if before.timed_out_until != after.timed_out_until:
-            if after.timed_out_until:
-                embed = self.embed_builder.create(
-                    title="⏰ メンバータイムアウト",
-                    description=f"{after.mention} がタイムアウトされました",
-                    color=self.config.warning_color
-                )
-                embed.add_field(
-                    name="解除予定",
-                    value=discord.utils.format_dt(after.timed_out_until, "R"),
-                    inline=True
-                )
-            else:
-                embed = self.embed_builder.create(
-                    title="⏰ タイムアウト解除",
-                    description=f"{after.mention} のタイムアウトが解除されました",
-                    color=self.config.success_color
-                )
+            is_remove = after.timed_out_until is None
+            timeout_until = None
+            if not is_remove and after.timed_out_until:
+                timeout_until = discord.utils.format_dt(after.timed_out_until, "R")
 
-            embed.set_author(name=str(after), icon_url=after.display_avatar.url)
-            embed.set_footer(text=f"ユーザーID: {after.id}")
+            view = LogMemberTimeoutView(
+                member_name=str(after),
+                member_mention=after.mention,
+                member_avatar=after.display_avatar.url,
+                member_id=after.id,
+                is_remove=is_remove,
+                timeout_until=timeout_until
+            )
 
             try:
-                await channel.send(embed=embed)
+                await channel.send(view=view)
             except discord.Forbidden:
                 logger.warning(f"ログ送信権限なし: guild_id={after.guild.id}")
 
     # ==================== チャンネルイベント ====================
+
+    def _get_channel_type_name(self, channel: discord.abc.GuildChannel) -> str:
+        """チャンネルタイプの日本語名を取得"""
+        type_names = {
+            discord.ChannelType.text: "テキストチャンネル",
+            discord.ChannelType.voice: "ボイスチャンネル",
+            discord.ChannelType.category: "カテゴリ",
+            discord.ChannelType.news: "ニュースチャンネル",
+            discord.ChannelType.stage_voice: "ステージチャンネル",
+            discord.ChannelType.forum: "フォーラムチャンネル",
+        }
+        return type_names.get(channel.type, str(channel.type))
 
     @commands.Cog.listener()
     async def on_guild_channel_create(self, channel: discord.abc.GuildChannel) -> None:
@@ -319,10 +377,16 @@ class Logger(commands.Cog):
         if not log_channel:
             return
 
-        embed = self.embed_builder.log_channel_create(channel)
+        view = LogChannelView(
+            channel_name=channel.name,
+            channel_type=self._get_channel_type_name(channel),
+            channel_id=channel.id,
+            is_delete=False,
+            channel_mention=channel.mention
+        )
 
         try:
-            await log_channel.send(embed=embed)
+            await log_channel.send(view=view)
         except discord.Forbidden:
             logger.warning(f"ログ送信権限なし: guild_id={channel.guild.id}")
 
@@ -336,10 +400,15 @@ class Logger(commands.Cog):
         if not log_channel:
             return
 
-        embed = self.embed_builder.log_channel_delete(channel)
+        view = LogChannelView(
+            channel_name=channel.name,
+            channel_type=self._get_channel_type_name(channel),
+            channel_id=channel.id,
+            is_delete=True
+        )
 
         try:
-            await log_channel.send(embed=embed)
+            await log_channel.send(view=view)
         except discord.Forbidden:
             logger.warning(f"ログ送信権限なし: guild_id={channel.guild.id}")
 
@@ -369,16 +438,15 @@ class Logger(commands.Cog):
         if not changes:
             return
 
-        embed = self.embed_builder.create(
-            title="📢 チャンネル更新",
-            description=f"**チャンネル:** {after.mention}",
-            color=self.config.warning_color
+        view = LogChannelUpdateView(
+            channel_name=after.name,
+            channel_mention=after.mention,
+            channel_id=after.id,
+            changes=changes
         )
-        embed.add_field(name="変更内容", value="\n".join(changes), inline=False)
-        embed.set_footer(text=f"チャンネルID: {after.id}")
 
         try:
-            await log_channel.send(embed=embed)
+            await log_channel.send(view=view)
         except discord.Forbidden:
             logger.warning(f"ログ送信権限なし: guild_id={after.guild.id}")
 
@@ -394,10 +462,16 @@ class Logger(commands.Cog):
         if not channel:
             return
 
-        embed = self.embed_builder.log_role_create(role)
+        view = LogRoleView(
+            role_name=role.name,
+            role_id=role.id,
+            is_delete=False,
+            role_mention=role.mention,
+            role_colour=role.colour if role.colour.value else None
+        )
 
         try:
-            await channel.send(embed=embed)
+            await channel.send(view=view)
         except discord.Forbidden:
             logger.warning(f"ログ送信権限なし: guild_id={role.guild.id}")
 
@@ -411,10 +485,15 @@ class Logger(commands.Cog):
         if not channel:
             return
 
-        embed = self.embed_builder.log_role_delete(role)
+        view = LogRoleView(
+            role_name=role.name,
+            role_id=role.id,
+            is_delete=True,
+            role_colour=role.colour if role.colour.value else None
+        )
 
         try:
-            await channel.send(embed=embed)
+            await channel.send(view=view)
         except discord.Forbidden:
             logger.warning(f"ログ送信権限なし: guild_id={role.guild.id}")
 
@@ -442,16 +521,16 @@ class Logger(commands.Cog):
         if not changes:
             return
 
-        embed = self.embed_builder.create(
-            title="🎭 ロール更新",
-            description=f"**ロール:** {after.mention}",
-            color=after.color if after.color.value else self.config.warning_color
+        view = LogRoleUpdateView(
+            role_name=after.name,
+            role_mention=after.mention,
+            role_id=after.id,
+            changes=changes,
+            role_colour=after.colour if after.colour.value else None
         )
-        embed.add_field(name="変更内容", value="\n".join(changes), inline=False)
-        embed.set_footer(text=f"ロールID: {after.id}")
 
         try:
-            await channel.send(embed=embed)
+            await channel.send(view=view)
         except discord.Forbidden:
             logger.warning(f"ログ送信権限なし: guild_id={after.guild.id}")
 

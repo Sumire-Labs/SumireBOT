@@ -17,6 +17,16 @@ from utils.config import Config
 from utils.database import Database
 from utils.embeds import EmbedBuilder
 from utils.logging import get_logger
+from views.music_views import (
+    NowPlayingView,
+    TrackRequestView,
+    QueueAddView,
+    PlaylistAddView,
+    MusicErrorView,
+    MusicWarningView,
+    MusicSuccessView,
+    MusicInfoView,
+)
 
 if TYPE_CHECKING:
     from bot import SumireBot
@@ -114,34 +124,22 @@ class Music(commands.Cog):
         # Now Playing メッセージを送信
         track = payload.track
         playback_source = self._get_playback_source(track)
-
-        embed = self.embed_builder.create(
-            title="▶️ Now Playing",
-            description=f"**[{track.title}]({track.uri})**",
-            color=self.config.success_color,
-        )
-        embed.add_field(name="アーティスト", value=track.author, inline=True)
-        embed.add_field(name="長さ", value=self._format_duration(track.length), inline=True)
-        embed.add_field(name="再生ソース", value=playback_source, inline=True)
-
-        # キューの残り曲数を表示
-        if player.queue:
-            embed.add_field(name="キュー", value=f"残り {len(player.queue)} 曲", inline=True)
-
-        # ループモードを表示
         loop = self.loop_mode.get(guild_id, "off")
-        if loop != "off":
-            loop_text = "トラック" if loop == "track" else "キュー"
-            embed.set_footer(text=f"ループ: {loop_text}")
 
-        # サムネイルを設定
-        if track.artwork:
-            embed.set_thumbnail(url=track.artwork)
+        view = NowPlayingView(
+            title=track.title,
+            author=track.author,
+            duration=self._format_duration(track.length),
+            source=playback_source,
+            queue_count=len(player.queue) if player.queue else 0,
+            loop_mode=loop if loop != "off" else None,
+            thumbnail_url=getattr(track, 'artwork', None)
+        )
 
         # チャンネルに送信
         if player.channel:
             try:
-                await player.channel.send(embed=embed)
+                await player.channel.send(view=view)
             except discord.Forbidden:
                 pass
 
@@ -191,38 +189,44 @@ class Music(commands.Cog):
         # エラーメッセージをチャンネルに送信
         if player.channel:
             try:
+                track_name = track.title if track else "曲"
+
                 # エラーの種類に応じたメッセージ
                 if "No playable" in exception_msg or "not found" in exception_msg.lower():
-                    description = (
-                        f"**{track.title if track else '曲'}** の再生ソースが見つかりませんでした。\n\n"
-                        "**原因**: Spotifyのメタデータは取得できましたが、"
-                        "SoundCloudに同じ曲が存在しないか、利用できません。\n\n"
-                        "**対処法**: 曲名やアーティスト名で直接検索してみてください。"
+                    view = MusicErrorView(
+                        title="再生ソースが見つかりません",
+                        description=(
+                            f"**{track_name}** の再生ソースが見つかりませんでした。\n\n"
+                            "Spotifyのメタデータは取得できましたが、"
+                            "SoundCloudに同じ曲が存在しないか、利用できません。"
+                        ),
+                        hint="曲名やアーティスト名で直接検索してみてください。"
                     )
                 elif "age restricted" in exception_msg.lower():
-                    description = (
-                        f"**{track.title if track else '曲'}** は年齢制限があるため再生できません。"
+                    view = MusicErrorView(
+                        title="年齢制限",
+                        description=f"**{track_name}** は年齢制限があるため再生できません。"
                     )
                 elif "region" in exception_msg.lower() or "country" in exception_msg.lower():
-                    description = (
-                        f"**{track.title if track else '曲'}** はこの地域では利用できません。"
+                    view = MusicErrorView(
+                        title="地域制限",
+                        description=f"**{track_name}** はこの地域では利用できません。"
                     )
                 else:
-                    description = (
-                        f"**{track.title if track else '曲'}** の再生中にエラーが発生しました。\n\n"
-                        f"```{exception_msg[:200]}```"
+                    view = MusicErrorView(
+                        title="再生エラー",
+                        description=f"**{track_name}** の再生中にエラーが発生しました。\n\n`{exception_msg[:150]}`"
                     )
 
-                embed = self.embed_builder.error(
-                    title="再生エラー",
-                    description=description
-                )
+                await player.channel.send(view=view)
 
                 # 次の曲があることを通知
                 if not player.queue.is_empty:
-                    embed.set_footer(text="次の曲を自動的に再生します...")
-
-                await player.channel.send(embed=embed)
+                    info_view = MusicInfoView(
+                        title="自動スキップ",
+                        description="次の曲を自動的に再生します..."
+                    )
+                    await player.channel.send(view=info_view)
             except discord.Forbidden:
                 pass
 
@@ -247,16 +251,18 @@ class Music(commands.Cog):
         # ユーザーに通知
         if player.channel:
             try:
-                embed = self.embed_builder.warning(
+                track_name = track.title if track else "曲"
+                footer = "次の曲を自動的に再生します..." if not player.queue.is_empty else None
+
+                view = MusicWarningView(
                     title="再生が停止しました",
                     description=(
-                        f"**{track.title if track else '曲'}** の再生が停止しました。\n"
+                        f"**{track_name}** の再生が停止しました。\n"
                         "ストリーミングソースからの応答がありません。"
-                    )
+                    ),
+                    footer=footer
                 )
-                if not player.queue.is_empty:
-                    embed.set_footer(text="次の曲を自動的に再生します...")
-                await player.channel.send(embed=embed)
+                await player.channel.send(view=view)
             except discord.Forbidden:
                 pass
 
@@ -286,11 +292,11 @@ class Music(commands.Cog):
                     # 退出メッセージ
                     if player.channel:
                         try:
-                            embed = self.embed_builder.info(
+                            view = MusicInfoView(
                                 title="自動退出",
                                 description="3分間何も再生されなかったため、ボイスチャンネルから退出しました。"
                             )
-                            await player.channel.send(embed=embed)
+                            await player.channel.send(view=view)
                         except discord.Forbidden:
                             pass
             except asyncio.CancelledError:
@@ -466,19 +472,19 @@ class Music(commands.Cog):
         if not tracks:
             # Spotify URL の場合、SoundCloudで見つからなかった可能性を示唆
             if is_spotify:
-                embed = self.embed_builder.error(
+                view = MusicErrorView(
                     title="再生ソースが見つかりません",
                     description=(
-                        f"Spotifyで曲は見つかりましたが、再生可能なソース（SoundCloud）で見つかりませんでした。\n\n"
-                        f"**ヒント**: 曲名で直接検索すると見つかる場合があります。"
-                    )
+                        "Spotifyで曲は見つかりましたが、再生可能なソース（SoundCloud）で見つかりませんでした。"
+                    ),
+                    hint="曲名で直接検索すると見つかる場合があります。"
                 )
             else:
-                embed = self.embed_builder.error(
+                view = MusicErrorView(
                     title="見つかりません",
                     description=f"「{query}」に一致する曲が見つかりませんでした。"
                 )
-            await interaction.followup.send(embed=embed)
+            await interaction.followup.send(view=view)
             return
 
         # プレイリスト/アルバムの場合
@@ -500,34 +506,30 @@ class Music(commands.Cog):
                 next_track = player.queue.get()
                 await player.play(next_track)
                 logger.info(f"再生リクエスト: {next_track.title}")
-                embed = self.embed_builder.create(
-                    title="🎵 再生リクエスト",
-                    description=f"**[{track.title}]({track.uri})**",
-                    color=self.config.info_color,
+                view = TrackRequestView(
+                    title=track.title,
+                    duration=self._format_duration(track.length),
+                    source=source_info,
+                    thumbnail_url=getattr(track, 'artwork', None)
                 )
-                embed.add_field(name="ソース", value=source_info, inline=True)
-                embed.set_footer(text="再生が開始されると「Now Playing」が表示されます")
             except Exception as e:
                 logger.error(f"再生開始エラー: {e}")
-                embed = self.embed_builder.error(
+                view = MusicErrorView(
                     title="再生エラー",
                     description=f"トラックの再生を開始できませんでした。\n`{e}`"
                 )
-                await interaction.followup.send(embed=embed)
+                await interaction.followup.send(view=view)
                 return
         else:
-            embed = self.embed_builder.success(
-                title="キューに追加",
-                description=f"**[{track.title}]({track.uri})**"
+            view = QueueAddView(
+                title=track.title,
+                duration=self._format_duration(track.length),
+                source=source_info,
+                position=len(player.queue),
+                thumbnail_url=getattr(track, 'artwork', None)
             )
-            embed.add_field(name="位置", value=f"#{len(player.queue)}", inline=True)
-            embed.add_field(name="ソース", value=source_info, inline=True)
 
-        embed.add_field(name="長さ", value=self._format_duration(track.length), inline=True)
-        if track.artwork:
-            embed.set_thumbnail(url=track.artwork)
-
-        await interaction.followup.send(embed=embed)
+        await interaction.followup.send(view=view)
 
     async def _handle_playlist(
         self,
@@ -549,10 +551,9 @@ class Music(commands.Cog):
 
         # 総再生時間を計算
         total_duration = sum(t.length for t in tracks)
-
-        # タイプに応じた表示
-        type_display = "アルバム" if content_type == "album" else "プレイリスト"
         source_info = "Spotify → SoundCloud" if is_spotify else "SoundCloud"
+        is_album = content_type == "album"
+        first_artwork = getattr(tracks[0], 'artwork', None) if tracks else None
 
         # 再生中でなければ再生開始
         if not player.playing and not player.queue.is_empty:
@@ -561,44 +562,37 @@ class Music(commands.Cog):
                 await player.play(next_track)
                 logger.info(f"再生開始: {next_track.title}")
 
-                embed = self.embed_builder.create(
-                    title=f"📋 {type_display}を追加",
-                    description=f"**{playlist_name}**",
-                    color=self.config.success_color,
+                view = PlaylistAddView(
+                    playlist_name=playlist_name,
+                    track_count=added_count,
+                    total_duration=self._format_duration(total_duration),
+                    source=source_info,
+                    first_track=next_track.title,
+                    is_album=is_album,
+                    thumbnail_url=first_artwork,
+                    is_playing=True
                 )
-                embed.add_field(name="曲数", value=f"{added_count} 曲", inline=True)
-                embed.add_field(name="総時間", value=self._format_duration(total_duration), inline=True)
-                embed.add_field(name="ソース", value=source_info, inline=True)
-                embed.add_field(name="最初の曲", value=next_track.title, inline=False)
-                embed.set_footer(text="再生が開始されると「Now Playing」が表示されます")
-
-                # サムネイル（最初のトラックのアートワーク）
-                first_artwork = getattr(tracks[0], 'artwork', None) if tracks else None
-                if first_artwork:
-                    embed.set_thumbnail(url=first_artwork)
 
             except Exception as e:
                 logger.error(f"プレイリスト再生開始エラー: {e}")
-                embed = self.embed_builder.error(
+                view = MusicErrorView(
                     title="再生エラー",
                     description=f"プレイリストの再生を開始できませんでした。\n`{e}`"
                 )
         else:
             # 既に再生中の場合
-            embed = self.embed_builder.success(
-                title=f"{type_display}をキューに追加",
-                description=f"**{playlist_name}**"
+            view = PlaylistAddView(
+                playlist_name=playlist_name,
+                track_count=added_count,
+                total_duration=self._format_duration(total_duration),
+                source=source_info,
+                queue_count=len(player.queue),
+                is_album=is_album,
+                thumbnail_url=first_artwork,
+                is_playing=False
             )
-            embed.add_field(name="追加曲数", value=f"{added_count} 曲", inline=True)
-            embed.add_field(name="総時間", value=self._format_duration(total_duration), inline=True)
-            embed.add_field(name="ソース", value=source_info, inline=True)
-            embed.add_field(name="キュー", value=f"残り {len(player.queue)} 曲", inline=True)
 
-            first_artwork = getattr(tracks[0], 'artwork', None) if tracks else None
-            if first_artwork:
-                embed.set_thumbnail(url=first_artwork)
-
-        await interaction.followup.send(embed=embed)
+        await interaction.followup.send(view=view)
 
     @app_commands.command(name="skip", description="現在の曲をスキップします")
     async def skip(self, interaction: discord.Interaction) -> None:
@@ -606,30 +600,30 @@ class Music(commands.Cog):
         player = await self._get_player(interaction)
 
         if not player or not player.playing:
-            embed = self.embed_builder.error(
+            view = MusicErrorView(
                 title="エラー",
                 description="現在再生中の曲がありません。"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
             return
 
         # ユーザーが同じチャンネルにいるかチェック
         if not interaction.user.voice or player.channel != interaction.user.voice.channel:
-            embed = self.embed_builder.error(
+            view = MusicErrorView(
                 title="エラー",
                 description="Botと同じボイスチャンネルに参加してください。"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
             return
 
         current_track = player.current
         await player.skip()
 
-        embed = self.embed_builder.success(
+        view = MusicSuccessView(
             title="スキップ",
             description=f"**{current_track.title}** をスキップしました。"
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(view=view)
 
     @app_commands.command(name="leave", description="再生を停止してボイスチャンネルから退出します")
     async def leave(self, interaction: discord.Interaction) -> None:
@@ -637,20 +631,20 @@ class Music(commands.Cog):
         player = await self._get_player(interaction)
 
         if not player:
-            embed = self.embed_builder.error(
+            view = MusicErrorView(
                 title="エラー",
                 description="現在ボイスチャンネルに接続していません。"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
             return
 
         # ユーザーが同じチャンネルにいるかチェック
         if not interaction.user.voice or player.channel != interaction.user.voice.channel:
-            embed = self.embed_builder.error(
+            view = MusicErrorView(
                 title="エラー",
                 description="Botと同じボイスチャンネルに参加してください。"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
             return
 
         # キューをクリアして停止
@@ -670,11 +664,11 @@ class Music(commands.Cog):
         # VCから切断
         await player.disconnect()
 
-        embed = self.embed_builder.success(
+        view = MusicSuccessView(
             title="退出",
             description="再生を停止し、ボイスチャンネルから退出しました。"
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(view=view)
 
     @app_commands.command(name="loop", description="ループモードを切り替えます")
     @app_commands.describe(mode="ループモード")
@@ -688,20 +682,20 @@ class Music(commands.Cog):
         player = await self._get_player(interaction)
 
         if not player:
-            embed = self.embed_builder.error(
+            view = MusicErrorView(
                 title="エラー",
                 description="現在再生中ではありません。"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
             return
 
         # ユーザーが同じチャンネルにいるかチェック
         if not interaction.user.voice or player.channel != interaction.user.voice.channel:
-            embed = self.embed_builder.error(
+            view = MusicErrorView(
                 title="エラー",
                 description="Botと同じボイスチャンネルに参加してください。"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
             return
 
         guild_id = interaction.guild.id
@@ -709,15 +703,15 @@ class Music(commands.Cog):
 
         mode_text = {
             "off": "オフ",
-            "track": "トラック（1曲リピート）",
-            "queue": "キュー（全曲リピート）"
+            "track": "🔂 トラック（1曲リピート）",
+            "queue": "🔁 キュー（全曲リピート）"
         }
 
-        embed = self.embed_builder.success(
+        view = MusicSuccessView(
             title="ループ設定",
             description=f"ループモードを **{mode_text[mode]}** に設定しました。"
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(view=view)
 
     # ==================== エラーハンドリング ====================
 
