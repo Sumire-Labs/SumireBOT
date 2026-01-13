@@ -54,7 +54,7 @@ db = Database()
 ### マルチサーバー対応
 全てのデータは `guild_id` をキーとして管理。サーバー間でデータが混在しない設計。
 
-### UI方針
+### UI
 - **Components V2 (LayoutView)**: チケットパネル等のインタラクティブUI
 - **従来の Embed + View**: ログ出力、情報表示 (Components V2 では Embed 使用不可のため)
 
@@ -78,9 +78,4 @@ persistent_views (id PK, guild_id, channel_id, message_id UNIQUE, view_type, dat
 
 -- 音楽設定
 music_settings (guild_id PK, default_volume, dj_role_id, music_channel_id)
-```
-作成
-
-```bash
-cp config.yaml.example config.yaml
 ```
