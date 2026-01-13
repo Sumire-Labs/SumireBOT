@@ -1,0 +1,17 @@
+# Discord Bot Framework
+discord.py==2.6.4
+
+# Configuration
+pyyaml>=6.0
+
+# Database
+aiosqlite>=0.19.0
+
+# Translation
+googletrans-py>=4.0.0
+
+# Music Player
+wavelink>=3.4.0
+
+# Type hints (development)
+typing-extensions>=4.0.0

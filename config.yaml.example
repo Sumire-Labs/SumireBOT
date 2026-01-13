@@ -1,0 +1,70 @@
+# すみれBot v2 設定ファイル
+# このファイルを config.yaml にコピーして、各設定を入力してください
+
+# BOT設定
+bot:
+  # Discord Developer Portalから取得したBOTトークン
+  token: "YOUR_BOT_TOKEN_HERE"
+  # BOT説明文
+  description: "すみれBot v2 - 多機能Discord BOT"
+
+# 翻訳API設定
+translate:
+  # googletrans-pyを使用するため、API keyは不要
+  # 将来的にGoogle Cloud Translation APIに移行する場合は以下を設定
+  # api_key: "YOUR_GOOGLE_TRANSLATE_API_KEY"
+  default_target_language: "ja"
+
+# ログ設定
+logging:
+  # ログレベル: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+  # ログファイルのパス
+  file: "logs/bot.log"
+  # コンソールにも出力するか
+  console: true
+
+# データベース設定
+database:
+  # SQLiteデータベースファイルのパス
+  path: "database/sumirev2.db"
+
+# UI設定
+ui:
+  # メインカラー（紫系）
+  embed_color: 0x9B59B6
+  # 成功時の色（緑）
+  success_color: 0x2ECC71
+  # エラー時の色（赤）
+  error_color: 0xE74C3C
+  # 警告時の色（オレンジ）
+  warning_color: 0xF39C12
+  # 情報表示の色（青）
+  info_color: 0x3498DB
+
+# チケットシステム設定
+ticket:
+  # チケットチャンネル名のプレフィックス
+  channel_prefix: "ticket"
+  # デフォルトカテゴリー一覧
+  categories:
+    - "質問"
+    - "サポート"
+    - "バグ報告"
+    - "リクエスト"
+    - "その他"
+
+# 音楽プレイヤー設定
+music:
+  # Lavalink サーバー設定
+  lavalink:
+    uri: "http://localhost:2333"
+    password: "youshallnotpass"
+  # デフォルト音量 (0-100)
+  default_volume: 50
+  # 自動退出時間（秒）- 何も再生されていない場合に退出
+  auto_leave_timeout: 180
+  # Spotify設定（オプション）
+  spotify:
+    client_id: ""
+    client_secret: ""
