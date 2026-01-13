@@ -13,6 +13,7 @@ from utils.config import Config
 from utils.database import Database
 from utils.embeds import EmbedBuilder
 from utils.logging import get_logger
+from utils.checks import Checks, handle_app_command_error
 
 if TYPE_CHECKING:
     from bot import SumireBot
@@ -306,7 +307,8 @@ class AutoRole(commands.Cog):
             logger.error(f"AutoRole: ロール付与エラー: {e}")
 
     @app_commands.command(name="autorole", description="自動ロール付与の設定を行います")
-    @app_commands.default_permissions(manage_roles=True)
+    @app_commands.default_permissions(administrator=True)
+    @Checks.is_admin()
     async def autorole(self, interaction: discord.Interaction) -> None:
         """自動ロール設定コマンド"""
         if not interaction.guild:
@@ -340,6 +342,16 @@ class AutoRole(commands.Cog):
         )
 
         await interaction.response.send_message(view=view, ephemeral=True)
+
+    # ==================== エラーハンドリング ====================
+
+    async def cog_app_command_error(
+        self,
+        interaction: discord.Interaction,
+        error: app_commands.AppCommandError
+    ) -> None:
+        """コマンドエラーハンドリング"""
+        await handle_app_command_error(interaction, error, "AutoRole")
 
 
 async def setup(bot: commands.Bot) -> None:
