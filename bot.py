@@ -46,6 +46,7 @@ class SumireBot(commands.Bot):
             "cogs.ticket",
             "cogs.translate",
             "cogs.music",
+            "cogs.autorole",
         ]
 
         for cog in cogs:
