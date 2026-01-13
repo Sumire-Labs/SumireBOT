@@ -17,6 +17,7 @@ from utils.config import Config
 from utils.database import Database
 from utils.embeds import EmbedBuilder
 from utils.logging import get_logger
+from utils.checks import handle_app_command_error
 from views.music_views import (
     NowPlayingView,
     TrackRequestView,
@@ -721,22 +722,7 @@ class Music(commands.Cog):
         error: app_commands.AppCommandError
     ) -> None:
         """コマンドエラーハンドリング"""
-        if isinstance(error, app_commands.CheckFailure):
-            embed = self.embed_builder.error(
-                title="権限エラー",
-                description="このコマンドを実行する権限がありません。"
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        else:
-            logger.error(f"音楽コマンドエラー: {error}")
-            embed = self.embed_builder.error(
-                title="エラー",
-                description="コマンドの実行中にエラーが発生しました。"
-            )
-            if interaction.response.is_done():
-                await interaction.followup.send(embed=embed, ephemeral=True)
-            else:
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+        await handle_app_command_error(interaction, error, "Music")
 
 
 async def setup(bot: commands.Bot) -> None:

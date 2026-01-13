@@ -5,10 +5,14 @@ from __future__ import annotations
 
 import discord
 from discord import app_commands
-from typing import Callable, TypeVar
+from typing import Callable, TypeVar, Optional
 from functools import wraps
 
+from utils.embeds import EmbedBuilder
+from utils.logging import get_logger
+
 T = TypeVar("T")
+logger = get_logger("sumire.utils.checks")
 
 
 class Checks:
@@ -72,3 +76,89 @@ class NotInGuild(CheckFailure):
     """サーバー内で実行されていない場合"""
     def __init__(self):
         super().__init__("このコマンドはサーバー内でのみ使用できます。")
+
+
+class MissingPermissions(CheckFailure):
+    """特定の権限が不足している場合"""
+    def __init__(self, permissions: list[str]):
+        self.permissions = permissions
+        perms_str = ", ".join(permissions)
+        super().__init__(f"必要な権限がありません: {perms_str}")
+
+
+async def handle_app_command_error(
+    interaction: discord.Interaction,
+    error: app_commands.AppCommandError,
+    cog_name: Optional[str] = None
+) -> bool:
+    """
+    共通のコマンドエラーハンドリング
+
+    Args:
+        interaction: Discord Interaction
+        error: 発生したエラー
+        cog_name: ログ用のCog名（オプション）
+
+    Returns:
+        bool: エラーが処理された場合True
+    """
+    embed_builder = EmbedBuilder()
+
+    if isinstance(error, app_commands.CheckFailure):
+        # 権限チェック失敗
+        if isinstance(error, NotAdministrator):
+            description = "このコマンドを実行する権限がありません。\n管理者権限が必要です。"
+        elif isinstance(error, NotInGuild):
+            description = "このコマンドはサーバー内でのみ使用できます。"
+        elif isinstance(error, MissingPermissions):
+            perms_str = "、".join(error.permissions)
+            description = f"このコマンドを実行する権限がありません。\n必要な権限: {perms_str}"
+        else:
+            description = "このコマンドを実行する権限がありません。\n管理者権限が必要です。"
+
+        embed = embed_builder.error(
+            title="権限エラー",
+            description=description
+        )
+        await _send_error_response(interaction, embed)
+        return True
+
+    elif isinstance(error, app_commands.CommandOnCooldown):
+        # クールダウン中
+        embed = embed_builder.warning(
+            title="クールダウン中",
+            description=f"このコマンドは {error.retry_after:.1f} 秒後に再度使用できます。"
+        )
+        await _send_error_response(interaction, embed)
+        return True
+
+    elif isinstance(error, app_commands.MissingPermissions):
+        # discord.py標準の権限不足
+        perms_str = "、".join(error.missing_permissions)
+        embed = embed_builder.error(
+            title="権限エラー",
+            description=f"このコマンドを実行する権限がありません。\n必要な権限: {perms_str}"
+        )
+        await _send_error_response(interaction, embed)
+        return True
+
+    # 未処理のエラー
+    log_prefix = f"[{cog_name}] " if cog_name else ""
+    logger.error(f"{log_prefix}コマンドエラー: {error}")
+    embed = embed_builder.error(
+        title="エラー",
+        description="コマンドの実行中にエラーが発生しました。"
+    )
+    await _send_error_response(interaction, embed)
+    return True
+
+
+async def _send_error_response(
+    interaction: discord.Interaction,
+    embed: discord.Embed
+) -> None:
+    """エラーレスポンスを送信（response/followup を適切に選択）"""
+    if interaction.response.is_done():
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    else:
+        await interaction.response.send_message(embed=embed, ephemeral=True)

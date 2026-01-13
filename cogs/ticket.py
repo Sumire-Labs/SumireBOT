@@ -11,7 +11,7 @@ from discord.ext import commands
 from utils.config import Config
 from utils.database import Database
 from utils.embeds import EmbedBuilder
-from utils.checks import Checks
+from utils.checks import Checks, handle_app_command_error
 from utils.logging import get_logger
 from views.ticket_views import TicketPanelView
 from views.persistent import PersistentViewManager
@@ -29,6 +29,7 @@ class Ticket(commands.Cog):
         self.embed_builder = EmbedBuilder()
 
     @app_commands.command(name="ticket", description="チケットパネルを設置します")
+    @app_commands.default_permissions(administrator=True)
     @Checks.is_admin()
     async def ticket_setup(self, interaction: discord.Interaction) -> None:
         """
@@ -152,23 +153,7 @@ class Ticket(commands.Cog):
         error: app_commands.AppCommandError
     ) -> None:
         """コマンドエラーハンドリング"""
-        if isinstance(error, app_commands.CheckFailure):
-            embed = self.embed_builder.error(
-                title="権限エラー",
-                description="このコマンドを実行する権限がありません。\n"
-                           "管理者権限が必要です。"
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        else:
-            logger.error(f"コマンドエラー: {error}")
-            embed = self.embed_builder.error(
-                title="エラー",
-                description="コマンドの実行中にエラーが発生しました。"
-            )
-            if interaction.response.is_done():
-                await interaction.followup.send(embed=embed, ephemeral=True)
-            else:
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+        await handle_app_command_error(interaction, error, "Ticket")
 
 
 async def setup(bot: commands.Bot) -> None:
