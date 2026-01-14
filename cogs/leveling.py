@@ -311,7 +311,7 @@ class Leveling(commands.Cog):
         vc_rank = await self.db.get_user_vc_rank(guild_id, target.id)
 
         embed = self.embed_builder.create(
-            title=f"📊 {target.display_name} のステータス",
+            title=f"{target.display_name} のステータス",
             color=target.accent_color or self.config.embed_color
         )
 
@@ -321,7 +321,7 @@ class Leveling(commands.Cog):
         text_percentage = int((xp / next_level_xp) * 100) if next_level_xp > 0 else 100
 
         embed.add_field(
-            name="💬 テキストレベル",
+            name="テキストレベル",
             value=f"**Lv.{level}** (#{text_rank if text_rank else 'N/A'})\n"
                   f"{xp} / {next_level_xp} XP\n"
                   f"`{text_bar}` {text_percentage}%",
@@ -335,7 +335,7 @@ class Leveling(commands.Cog):
         vc_percentage = int((vc_progress_seconds / 3600) * 100)
 
         embed.add_field(
-            name="🎤 VCレベル",
+            name="VCレベル",
             value=f"**Lv.{vc_level}** (#{vc_rank if vc_rank else 'N/A'})\n"
                   f"合計: {self._format_time(vc_time)}\n"
                   f"`{vc_bar}` {vc_percentage}%",
@@ -381,13 +381,13 @@ class Leveling(commands.Cog):
                 text_ranking += f"{medal} <@{data['user_id']}> Lv.**{data['level']}**\n"
 
             embed.add_field(
-                name="💬 テキストランキング",
+                name="テキストランキング",
                 value=text_ranking[:1024],
                 inline=True
             )
         else:
             embed.add_field(
-                name="💬 テキストランキング",
+                name="テキストランキング",
                 value="データなし",
                 inline=True
             )
@@ -400,7 +400,7 @@ class Leveling(commands.Cog):
                 vc_ranking += f"{medal} <@{data['user_id']}> Lv.**{data['vc_level']}**\n"
 
             embed.add_field(
-                name="🎤 VCランキング",
+                name="VCランキング",
                 value=vc_ranking[:1024],
                 inline=True
             )

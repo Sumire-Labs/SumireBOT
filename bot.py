@@ -87,12 +87,12 @@ class SumireBot(commands.Bot):
         """サーバー退出時"""
         self.logger.info(f"サーバーから退出: {guild.name} (ID: {guild.id})")
 
-    @tasks.loop(seconds=30)
+    @tasks.loop(seconds=15)
     async def update_status(self) -> None:
         """ステータスを定期更新（CPU・メモリ使用量表示）"""
         try:
-            # CPU使用率（Bot プロセスのみ）
-            cpu_percent = self._process.cpu_percent()
+            # CPU使用率（別スレッドでブロッキング測定）
+            cpu_percent = await asyncio.to_thread(self._process.cpu_percent, 0.5)
 
             # メモリ使用量（Bot プロセスのみ、MB単位）
             memory_mb = self._process.memory_info().rss / 1024 / 1024
