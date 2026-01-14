@@ -1,43 +1,86 @@
 """
 Avatar コマンド Cog
+Components V2 を使用
 """
 from __future__ import annotations
 
 import discord
-from discord import app_commands
+from discord import app_commands, ui
 from discord.ext import commands
 from typing import Optional
 
 from utils.config import Config
-from utils.embeds import EmbedBuilder
 
 
-class AvatarDownloadView(discord.ui.View):
-    """アバターダウンロードボタン用View"""
+class AvatarView(ui.LayoutView):
+    """アバター表示用View (Components V2)"""
 
-    def __init__(self, avatar_url: str, banner_url: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        target: discord.User | discord.Member,
+        avatar_url: str,
+        global_avatar_url: Optional[str],
+        server_avatar_url: Optional[str],
+        banner_url: Optional[str],
+        accent_color: Optional[discord.Colour]
+    ) -> None:
         super().__init__(timeout=300)
 
-        # アバターダウンロードボタン
-        self.add_item(
-            discord.ui.Button(
-                label="アバターをダウンロード",
-                style=discord.ButtonStyle.link,
-                url=avatar_url,
-                emoji="📥"
-            )
-        )
+        config = Config()
+        color = accent_color or config.embed_color
 
-        # バナーダウンロードボタン（存在する場合）
+        # メインコンテナ
+        container = ui.Container(accent_colour=color)
+
+        # ヘッダー
+        container.add_item(ui.TextDisplay(f"# 👤 {target.display_name} のアバター"))
+        container.add_item(ui.Separator())
+
+        # アバター画像（MediaGallery使用）
+        gallery = ui.MediaGallery()
+        gallery.add_item(ui.MediaGalleryItem(media=avatar_url))
+        container.add_item(gallery)
+
+        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+        # ユーザー情報
+        info_lines = [f"**ユーザー:** {target}"]
+        info_lines.append(f"**ID:** `{target.id}`")
+        container.add_item(ui.TextDisplay("\n".join(info_lines)))
+
+        # リンク情報
+        link_lines = []
+        if server_avatar_url:
+            link_lines.append(f"🏠 [サーバーアバター]({server_avatar_url})")
+        if global_avatar_url:
+            link_lines.append(f"🌐 [グローバルアバター]({global_avatar_url})")
         if banner_url:
-            self.add_item(
-                discord.ui.Button(
-                    label="バナーをダウンロード",
-                    style=discord.ButtonStyle.link,
-                    url=banner_url,
-                    emoji="🖼️"
-                )
-            )
+            link_lines.append(f"🖼️ [バナー]({banner_url})")
+
+        if link_lines:
+            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+            container.add_item(ui.TextDisplay("**リンク:**\n" + "\n".join(link_lines)))
+
+        self.add_item(container)
+
+        # ダウンロードボタン（ActionRow）
+        action_row = ui.ActionRow()
+        action_row.add_item(ui.Button(
+            label="アバターをダウンロード",
+            style=discord.ButtonStyle.link,
+            url=avatar_url,
+            emoji="📥"
+        ))
+
+        if banner_url:
+            action_row.add_item(ui.Button(
+                label="バナーをダウンロード",
+                style=discord.ButtonStyle.link,
+                url=banner_url,
+                emoji="🖼️"
+            ))
+
+        self.add_item(action_row)
 
 
 class Avatar(commands.Cog):
@@ -46,7 +89,6 @@ class Avatar(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self.config = Config()
-        self.embed_builder = EmbedBuilder()
 
     @app_commands.command(name="avatar", description="ユーザーのアバターを表示します")
     @app_commands.describe(user="アバターを表示するユーザー（省略で自分）")
@@ -78,40 +120,17 @@ class Avatar(commands.Cog):
         # バナーURL
         banner_url = fetched_user.banner.url if fetched_user.banner else None
 
-        # メインEmbed
-        embed = self.embed_builder.create(
-            title=f"{target.display_name} のアバター",
-            color=target.accent_color or self.config.embed_color
-        )
-
-        embed.set_image(url=avatar_url)
-        embed.set_author(name=str(target), icon_url=avatar_url)
-
-        # アバター情報
-        avatar_info = []
-        if server_avatar_url:
-            avatar_info.append(f"🏠 [サーバーアバター]({server_avatar_url})")
-        if global_avatar_url:
-            avatar_info.append(f"🌐 [グローバルアバター]({global_avatar_url})")
-        if banner_url:
-            avatar_info.append(f"🖼️ [バナー]({banner_url})")
-
-        if avatar_info:
-            embed.add_field(
-                name="リンク",
-                value="\n".join(avatar_info),
-                inline=False
-            )
-
-        embed.set_footer(text=f"ユーザーID: {target.id}")
-
-        # ダウンロードボタン
-        view = AvatarDownloadView(
+        # Components V2 Viewを作成
+        view = AvatarView(
+            target=target,
             avatar_url=avatar_url,
-            banner_url=banner_url
+            global_avatar_url=global_avatar_url,
+            server_avatar_url=server_avatar_url,
+            banner_url=banner_url,
+            accent_color=fetched_user.accent_color
         )
 
-        await interaction.followup.send(embed=embed, view=view)
+        await interaction.followup.send(view=view)
 
 
 async def setup(bot: commands.Bot) -> None:
