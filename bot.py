@@ -43,7 +43,8 @@ class SumireBot(commands.Bot):
 
         # Cogsの読み込み
         cogs = [
-            "cogs.general",
+            "cogs.ping",
+            "cogs.avatar",
             "cogs.logger",
             "cogs.ticket",
             "cogs.translate",

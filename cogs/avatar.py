@@ -1,6 +1,5 @@
 """
-一般コマンド Cog
-/ping, /avatar コマンド
+Avatar コマンド Cog
 """
 from __future__ import annotations
 
@@ -41,55 +40,13 @@ class AvatarDownloadView(discord.ui.View):
             )
 
 
-class General(commands.Cog):
-    """一般コマンド"""
+class Avatar(commands.Cog):
+    """Avatarコマンド"""
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self.config = Config()
         self.embed_builder = EmbedBuilder()
-
-    @app_commands.command(name="ping", description="BOTのレイテンシを測定します")
-    async def ping(self, interaction: discord.Interaction) -> None:
-        """
-        BOTのレイテンシを測定するコマンド
-        """
-        # WebSocketレイテンシ
-        ws_latency = round(self.bot.latency * 1000)
-
-        # 応答レイテンシを測定
-        await interaction.response.defer()
-
-        embed = self.embed_builder.create(
-            title="🏓 Pong!",
-            description="BOTのレイテンシ情報"
-        )
-
-        # レイテンシに応じた色とステータス
-        if ws_latency < 100:
-            status = "🟢 良好"
-            color = self.config.success_color
-        elif ws_latency < 200:
-            status = "🟡 普通"
-            color = self.config.warning_color
-        else:
-            status = "🔴 遅延"
-            color = self.config.error_color
-
-        embed.color = color
-        embed.add_field(
-            name="WebSocket",
-            value=f"`{ws_latency}ms`",
-            inline=True
-        )
-        embed.add_field(
-            name="ステータス",
-            value=status,
-            inline=True
-        )
-        embed.set_footer(text=f"リクエスト: {interaction.user}")
-
-        await interaction.followup.send(embed=embed)
 
     @app_commands.command(name="avatar", description="ユーザーのアバターを表示します")
     @app_commands.describe(user="アバターを表示するユーザー（省略で自分）")
@@ -98,9 +55,7 @@ class General(commands.Cog):
         interaction: discord.Interaction,
         user: Optional[discord.User] = None
     ) -> None:
-        """
-        ユーザーのアバターとバナーを表示するコマンド
-        """
+        """ユーザーのアバターとバナーを表示するコマンド"""
         await interaction.response.defer()
 
         target = user or interaction.user
@@ -161,4 +116,4 @@ class General(commands.Cog):
 
 async def setup(bot: commands.Bot) -> None:
     """Cogのセットアップ"""
-    await bot.add_cog(General(bot))
+    await bot.add_cog(Avatar(bot))
