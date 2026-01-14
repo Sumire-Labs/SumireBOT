@@ -25,14 +25,17 @@ class NowPlayingView(ui.LayoutView):
 
         container = ui.Container(accent_colour=discord.Colour.green())
 
-        # ヘッダー
-        header_section = ui.Section(
-            ui.TextDisplay("## ▶️ Now Playing"),
-            ui.TextDisplay(f"**{title}**"),
-        )
+        # ヘッダー（サムネイルがある場合はSection、ない場合はTextDisplay）
         if thumbnail_url:
-            header_section.accessory = ui.Thumbnail(thumbnail_url)
-        container.add_item(header_section)
+            header_section = ui.Section(
+                ui.TextDisplay("## ▶️ Now Playing"),
+                ui.TextDisplay(f"**{title}**"),
+                accessory=ui.Thumbnail(thumbnail_url)
+            )
+            container.add_item(header_section)
+        else:
+            container.add_item(ui.TextDisplay("## ▶️ Now Playing"))
+            container.add_item(ui.TextDisplay(f"**{title}**"))
 
         container.add_item(ui.Separator())
 
@@ -70,14 +73,17 @@ class TrackRequestView(ui.LayoutView):
 
         container = ui.Container(accent_colour=discord.Colour.blue())
 
-        # ヘッダー
-        header_section = ui.Section(
-            ui.TextDisplay("## 🎵 再生リクエスト"),
-            ui.TextDisplay(f"**{title}**"),
-        )
+        # ヘッダー（サムネイルがある場合はSection、ない場合はTextDisplay）
         if thumbnail_url:
-            header_section.accessory = ui.Thumbnail(thumbnail_url)
-        container.add_item(header_section)
+            header_section = ui.Section(
+                ui.TextDisplay("## 🎵 再生リクエスト"),
+                ui.TextDisplay(f"**{title}**"),
+                accessory=ui.Thumbnail(thumbnail_url)
+            )
+            container.add_item(header_section)
+        else:
+            container.add_item(ui.TextDisplay("## 🎵 再生リクエスト"))
+            container.add_item(ui.TextDisplay(f"**{title}**"))
 
         container.add_item(ui.Separator())
 
@@ -107,14 +113,17 @@ class QueueAddView(ui.LayoutView):
 
         container = ui.Container(accent_colour=discord.Colour.green())
 
-        # ヘッダー
-        header_section = ui.Section(
-            ui.TextDisplay("## ✅ キューに追加"),
-            ui.TextDisplay(f"**{title}**"),
-        )
+        # ヘッダー（サムネイルがある場合はSection、ない場合はTextDisplay）
         if thumbnail_url:
-            header_section.accessory = ui.Thumbnail(thumbnail_url)
-        container.add_item(header_section)
+            header_section = ui.Section(
+                ui.TextDisplay("## ✅ キューに追加"),
+                ui.TextDisplay(f"**{title}**"),
+                accessory=ui.Thumbnail(thumbnail_url)
+            )
+            container.add_item(header_section)
+        else:
+            container.add_item(ui.TextDisplay("## ✅ キューに追加"))
+            container.add_item(ui.TextDisplay(f"**{title}**"))
 
         container.add_item(ui.Separator())
 
@@ -148,14 +157,17 @@ class PlaylistAddView(ui.LayoutView):
 
         type_text = "アルバム" if is_album else "プレイリスト"
 
-        # ヘッダー
-        header_section = ui.Section(
-            ui.TextDisplay(f"## 📋 {type_text}を追加"),
-            ui.TextDisplay(f"**{playlist_name}**"),
-        )
+        # ヘッダー（サムネイルがある場合はSection、ない場合はTextDisplay）
         if thumbnail_url:
-            header_section.accessory = ui.Thumbnail(thumbnail_url)
-        container.add_item(header_section)
+            header_section = ui.Section(
+                ui.TextDisplay(f"## 📋 {type_text}を追加"),
+                ui.TextDisplay(f"**{playlist_name}**"),
+                accessory=ui.Thumbnail(thumbnail_url)
+            )
+            container.add_item(header_section)
+        else:
+            container.add_item(ui.TextDisplay(f"## 📋 {type_text}を追加"))
+            container.add_item(ui.TextDisplay(f"**{playlist_name}**"))
 
         container.add_item(ui.Separator())
 
