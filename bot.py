@@ -91,8 +91,13 @@ class SumireBot(commands.Bot):
     async def update_status(self) -> None:
         """ステータスを定期更新（CPU・メモリ使用量表示）"""
         try:
-            # CPU使用率（別スレッドでブロッキング測定）
-            cpu_percent = await asyncio.to_thread(self._process.cpu_percent, 0.5)
+            # CPU使用率を別スレッドで測定
+            def get_cpu():
+                # Processオブジェクトを再取得して正確な値を得る
+                proc = psutil.Process()
+                return proc.cpu_percent(interval=1.0)
+
+            cpu_percent = await asyncio.to_thread(get_cpu)
 
             # メモリ使用量（Bot プロセスのみ、MB単位）
             memory_mb = self._process.memory_info().rss / 1024 / 1024
@@ -105,9 +110,10 @@ class SumireBot(commands.Bot):
                 name=status_text
             )
             await self.change_presence(activity=activity)
+            self.logger.debug(f"ステータス更新: {status_text}")
 
         except Exception as e:
-            self.logger.error(f"ステータス更新エラー: {e}")
+            self.logger.error(f"ステータス更新エラー: {e}", exc_info=True)
 
     @update_status.before_loop
     async def before_update_status(self) -> None:
