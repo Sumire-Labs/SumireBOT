@@ -39,6 +39,16 @@ SPOTIFY_REGEX = re.compile(
     r"https?://open\.spotify\.com/(?:intl-[a-z]{2}/)?(track|album|playlist)/([a-zA-Z0-9]+)"
 )
 
+# YouTube URL 正規表現
+YOUTUBE_REGEX = re.compile(
+    r"https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/playlist\?list=|music\.youtube\.com/watch\?v=)([a-zA-Z0-9_-]+)"
+)
+
+# SoundCloud URL 正規表現
+SOUNDCLOUD_REGEX = re.compile(
+    r"https?://(?:www\.)?soundcloud\.com/.+"
+)
+
 
 class Music(commands.Cog):
     """音楽プレイヤー"""
@@ -439,42 +449,84 @@ class Music(commands.Cog):
                 logger.warning(f"Spotify検索エラー: {e}")
                 return ([], None, None)
 
-        # YouTube Music検索を優先（曲名で検索）
-        try:
-            logger.info(f"YouTube Music検索: {query}")
-            result = await wavelink.Playable.search(f"ytmsearch:{query}")
-            if result:
-                tracks = result if isinstance(result, list) else [result]
-                return (tracks[:1], None, "track")
-        except Exception as e:
-            logger.warning(f"YouTube Music検索エラー: {e}")
+        # YouTube URL の処理
+        youtube_match = YOUTUBE_REGEX.match(query)
+        if youtube_match or "youtube.com" in query or "youtu.be" in query:
+            try:
+                logger.info(f"YouTube URL: {query}")
+                result = await wavelink.Playable.search(query)
 
-        # フォールバック: SoundCloud検索
+                # プレイリストの場合
+                if isinstance(result, wavelink.Playlist):
+                    tracks = list(result.tracks)
+                    playlist_name = result.name or "YouTube Playlist"
+                    logger.info(f"YouTubeプレイリスト取得: {playlist_name} ({len(tracks)}曲)")
+                    return (tracks, playlist_name, "playlist")
+
+                # 単一トラックの場合
+                if result:
+                    tracks = result if isinstance(result, list) else [result]
+                    logger.info(f"YouTube動画: {tracks[0].title}")
+                    return (tracks[:1], None, "track")
+
+            except Exception as e:
+                logger.warning(f"YouTube読み込みエラー: {e}")
+                return ([], None, None)
+
+        # SoundCloud URL の処理
+        if SOUNDCLOUD_REGEX.match(query):
+            try:
+                logger.info(f"SoundCloud URL: {query}")
+                result = await wavelink.Playable.search(query)
+
+                if isinstance(result, wavelink.Playlist):
+                    tracks = list(result.tracks)
+                    playlist_name = result.name or "SoundCloud Playlist"
+                    return (tracks, playlist_name, "playlist")
+
+                if result:
+                    tracks = result if isinstance(result, list) else [result]
+                    return (tracks[:1], None, "track")
+
+            except Exception as e:
+                logger.warning(f"SoundCloud読み込みエラー: {e}")
+                return ([], None, None)
+
+        # テキスト検索（検索ソースのリスト、優先順）
+        search_sources = [
+            ("YouTube", wavelink.TrackSource.YouTube),
+            ("YouTubeMusic", wavelink.TrackSource.YouTubeMusic),
+        ]
+
+        for source_name, source in search_sources:
+            try:
+                logger.info(f"{source_name}検索: {query}")
+                result = await wavelink.Playable.search(query, source=source)
+                if result:
+                    tracks = result if isinstance(result, list) else [result]
+                    logger.info(f"{source_name}で見つかりました: {tracks[0].title}")
+                    return (tracks[:1], None, "track")
+            except Exception as e:
+                logger.warning(f"{source_name}検索エラー: {e}")
+                continue
+
+        # 最終フォールバック: SoundCloud（プレフィックス直接指定）
         try:
             logger.info(f"SoundCloud検索: {query}")
             result = await wavelink.Playable.search(f"scsearch:{query}")
             if result:
                 tracks = result if isinstance(result, list) else [result]
+                logger.info(f"SoundCloudで見つかりました: {tracks[0].title}")
                 return (tracks[:1], None, "track")
         except Exception as e:
             logger.warning(f"SoundCloud検索エラー: {e}")
-
-        # 最終フォールバック: YouTube検索
-        try:
-            logger.info(f"YouTube検索: {query}")
-            result = await wavelink.Playable.search(f"ytsearch:{query}")
-            if result:
-                tracks = result if isinstance(result, list) else [result]
-                return (tracks[:1], None, "track")
-        except Exception as e:
-            logger.error(f"YouTube検索エラー: {e}")
 
         return ([], None, None)
 
     # ==================== コマンド ====================
 
     @app_commands.command(name="play", description="曲を再生またはキューに追加します")
-    @app_commands.describe(query="曲名またはSpotify URL（YouTube Music/SoundCloud/YouTubeから検索）")
+    @app_commands.describe(query="曲名、YouTube/Spotify/SoundCloud URL")
     async def play(self, interaction: discord.Interaction, query: str) -> None:
         """曲を再生"""
         player = await self._ensure_voice(interaction)
