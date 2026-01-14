@@ -226,6 +226,52 @@ class Leveling(commands.Cog):
         if leveled_up:
             logger.info(f"レベルアップ: {message.author} -> Lv.{new_level} in {message.guild.name}")
 
+    @commands.Cog.listener()
+    async def on_voice_state_update(
+        self,
+        member: discord.Member,
+        before: discord.VoiceState,
+        after: discord.VoiceState
+    ) -> None:
+        """VC参加/退出時の時間トラッキング"""
+        if member.bot:
+            return
+
+        guild_id = member.guild.id
+        user_id = member.id
+
+        # レベルシステムが有効か確認
+        settings = await self.db.get_leveling_settings(guild_id)
+        if settings and not settings.get("enabled", True):
+            return
+
+        # VCに参加した場合
+        if before.channel is None and after.channel is not None:
+            await self.db.set_vc_join_time(guild_id, user_id)
+            logger.debug(f"VC参加: {member} in {after.channel.name}")
+
+        # VCから退出した場合
+        elif before.channel is not None and after.channel is None:
+            vc_time, vc_level, leveled_up = await self.db.add_vc_time(guild_id, user_id)
+            if leveled_up:
+                logger.info(f"VCレベルアップ: {member} -> VCLv.{vc_level} in {member.guild.name}")
+
+        # 別のVCに移動した場合（時間は継続）
+        elif before.channel is not None and after.channel is not None and before.channel != after.channel:
+            logger.debug(f"VC移動: {member} {before.channel.name} -> {after.channel.name}")
+
+    def _format_time(self, seconds: int) -> str:
+        """秒数を時間:分:秒形式にフォーマット"""
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        secs = seconds % 60
+        if hours > 0:
+            return f"{hours}時間{minutes}分"
+        elif minutes > 0:
+            return f"{minutes}分{secs}秒"
+        else:
+            return f"{secs}秒"
+
     @app_commands.command(name="rank", description="レベルと経験値を表示します")
     @app_commands.describe(user="表示するユーザー（省略で自分）")
     async def rank(
@@ -245,35 +291,55 @@ class Leveling(commands.Cog):
         if not user_data:
             embed = self.embed_builder.info(
                 title="レベル情報",
-                description=f"{target.mention} はまだレベルデータがありません。\nメッセージを送信してXPを獲得しましょう！"
+                description=f"{target.mention} はまだレベルデータがありません。\nメッセージを送信またはVCに参加しましょう！"
             )
             await interaction.followup.send(embed=embed)
             return
 
+        # テキストレベル情報
         level = user_data["level"]
         xp = user_data["xp"]
         next_level_xp = (level + 1) * 100
 
-        # ランキング順位を取得
-        rank = await self.db.get_user_rank(guild_id, target.id)
+        # VCレベル情報
+        vc_time = user_data.get("vc_time", 0)
+        vc_level = user_data.get("vc_level", 0)
+        next_vc_level_time = (vc_level + 1) * 3600  # 次のレベルまでの秒数
 
-        # プログレスバーを作成
-        progress = int((xp / next_level_xp) * 10) if next_level_xp > 0 else 10
-        bar = "█" * progress + "░" * (10 - progress)
-        percentage = int((xp / next_level_xp) * 100) if next_level_xp > 0 else 100
+        # ランキング順位を取得
+        text_rank = await self.db.get_user_rank(guild_id, target.id)
+        vc_rank = await self.db.get_user_vc_rank(guild_id, target.id)
 
         embed = self.embed_builder.create(
-            title=f"📊 {target.display_name} のレベル",
+            title=f"📊 {target.display_name} のステータス",
             color=target.accent_color or self.config.embed_color
         )
 
-        embed.add_field(name="レベル", value=f"**{level}**", inline=True)
-        embed.add_field(name="ランキング", value=f"**#{rank}**" if rank else "N/A", inline=True)
-        embed.add_field(name="経験値", value=f"**{xp}** / {next_level_xp} XP", inline=True)
+        # テキストレベルセクション
+        text_progress = int((xp / next_level_xp) * 10) if next_level_xp > 0 else 10
+        text_bar = "█" * text_progress + "░" * (10 - text_progress)
+        text_percentage = int((xp / next_level_xp) * 100) if next_level_xp > 0 else 100
+
         embed.add_field(
-            name="進捗",
-            value=f"`{bar}` {percentage}%",
-            inline=False
+            name="💬 テキストレベル",
+            value=f"**Lv.{level}** (#{text_rank if text_rank else 'N/A'})\n"
+                  f"{xp} / {next_level_xp} XP\n"
+                  f"`{text_bar}` {text_percentage}%",
+            inline=True
+        )
+
+        # VCレベルセクション
+        vc_progress_seconds = vc_time % 3600  # 現在のレベル内での秒数
+        vc_progress = int((vc_progress_seconds / 3600) * 10)
+        vc_bar = "█" * vc_progress + "░" * (10 - vc_progress)
+        vc_percentage = int((vc_progress_seconds / 3600) * 100)
+
+        embed.add_field(
+            name="🎤 VCレベル",
+            value=f"**Lv.{vc_level}** (#{vc_rank if vc_rank else 'N/A'})\n"
+                  f"合計: {self._format_time(vc_time)}\n"
+                  f"`{vc_bar}` {vc_percentage}%",
+            inline=True
         )
 
         embed.set_author(name=str(target), icon_url=target.display_avatar.url)
@@ -288,38 +354,62 @@ class Leveling(commands.Cog):
         await interaction.response.defer()
 
         guild_id = interaction.guild.id
-        leaderboard_data = await self.db.get_leaderboard(guild_id, limit=10)
+        text_leaderboard = await self.db.get_leaderboard(guild_id, limit=10)
+        vc_leaderboard = await self.db.get_vc_leaderboard(guild_id, limit=10)
 
-        if not leaderboard_data:
+        if not text_leaderboard and not vc_leaderboard:
             embed = self.embed_builder.info(
-                title="レベルランキング",
-                description="まだランキングデータがありません。\nメッセージを送信してXPを獲得しましょう！"
+                title="ランキング",
+                description="まだランキングデータがありません。\nメッセージを送信またはVCに参加しましょう！"
             )
             await interaction.followup.send(embed=embed)
             return
 
         embed = self.embed_builder.create(
-            title="🏆 レベルランキング",
+            title="🏆 サーバーランキング",
             description=f"**{interaction.guild.name}** のトップ10",
             color=0xFFD700
         )
 
-        leaderboard_text = ""
         medals = ["🥇", "🥈", "🥉"]
 
-        for idx, data in enumerate(leaderboard_data, 1):
-            medal = medals[idx - 1] if idx <= 3 else f"**{idx}.**"
-            user_id = data["user_id"]
-            level = data["level"]
-            xp = data["xp"]
+        # テキストランキング
+        if text_leaderboard:
+            text_ranking = ""
+            for idx, data in enumerate(text_leaderboard, 1):
+                medal = medals[idx - 1] if idx <= 3 else f"**{idx}.**"
+                text_ranking += f"{medal} <@{data['user_id']}> Lv.**{data['level']}**\n"
 
-            leaderboard_text += f"{medal} <@{user_id}> - Lv.**{level}** ({xp} XP)\n"
+            embed.add_field(
+                name="💬 テキストランキング",
+                value=text_ranking[:1024],
+                inline=True
+            )
+        else:
+            embed.add_field(
+                name="💬 テキストランキング",
+                value="データなし",
+                inline=True
+            )
 
-        embed.add_field(
-            name="ランキング",
-            value=leaderboard_text[:1024],
-            inline=False
-        )
+        # VCランキング
+        if vc_leaderboard:
+            vc_ranking = ""
+            for idx, data in enumerate(vc_leaderboard, 1):
+                medal = medals[idx - 1] if idx <= 3 else f"**{idx}.**"
+                vc_ranking += f"{medal} <@{data['user_id']}> Lv.**{data['vc_level']}**\n"
+
+            embed.add_field(
+                name="🎤 VCランキング",
+                value=vc_ranking[:1024],
+                inline=True
+            )
+        else:
+            embed.add_field(
+                name="🎤 VCランキング",
+                value="データなし",
+                inline=True
+            )
 
         embed.set_thumbnail(url=interaction.guild.icon.url if interaction.guild.icon else None)
         embed.set_footer(text=f"リクエスト: {interaction.user}")

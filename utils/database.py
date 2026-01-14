@@ -122,6 +122,9 @@ class Database:
                 xp INTEGER DEFAULT 0,
                 level INTEGER DEFAULT 0,
                 last_xp_time TIMESTAMP,
+                vc_time INTEGER DEFAULT 0,
+                vc_level INTEGER DEFAULT 0,
+                vc_join_time TIMESTAMP,
                 UNIQUE(guild_id, user_id)
             );
         """)
@@ -567,7 +570,7 @@ class Database:
             return [dict(row) for row in rows]
 
     async def get_user_rank(self, guild_id: int, user_id: int) -> Optional[int]:
-        """ユーザーのランキング順位を取得"""
+        """ユーザーのテキストランキング順位を取得"""
         async with self._db.execute("""
             SELECT COUNT(*) + 1 as rank FROM user_levels
             WHERE guild_id = ? AND (
@@ -576,6 +579,86 @@ class Database:
                  xp > (SELECT xp FROM user_levels WHERE guild_id = ? AND user_id = ?))
             )
         """, (guild_id, guild_id, user_id, guild_id, user_id, guild_id, user_id)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return row["rank"]
+            return None
+
+    # ==================== VC時間トラッキング ====================
+
+    async def set_vc_join_time(self, guild_id: int, user_id: int) -> None:
+        """VC参加時間を記録"""
+        await self._db.execute("""
+            INSERT INTO user_levels (guild_id, user_id, vc_join_time)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(guild_id, user_id) DO UPDATE SET
+                vc_join_time = CURRENT_TIMESTAMP
+        """, (guild_id, user_id))
+        await self._db.commit()
+
+    async def add_vc_time(self, guild_id: int, user_id: int) -> tuple[int, int, bool]:
+        """
+        VC退出時に時間を加算し、VCレベルを計算
+
+        Returns:
+            tuple[int, int, bool]: (合計VC時間(秒), VCレベル, レベルアップしたか)
+        """
+        current = await self.get_user_level(guild_id, user_id)
+
+        if not current or not current.get("vc_join_time"):
+            return 0, 0, False
+
+        # 参加時間を計算
+        join_time = datetime.fromisoformat(current["vc_join_time"])
+        time_spent = int((datetime.utcnow() - join_time).total_seconds())
+
+        if time_spent < 0:
+            time_spent = 0
+
+        new_vc_time = current.get("vc_time", 0) + time_spent
+        old_vc_level = current.get("vc_level", 0)
+
+        # VCレベル計算: 1時間(3600秒) = 1レベル
+        new_vc_level = new_vc_time // 3600
+
+        leveled_up = new_vc_level > old_vc_level
+
+        await self._db.execute("""
+            UPDATE user_levels
+            SET vc_time = ?, vc_level = ?, vc_join_time = NULL
+            WHERE guild_id = ? AND user_id = ?
+        """, (new_vc_time, new_vc_level, guild_id, user_id))
+        await self._db.commit()
+
+        return new_vc_time, new_vc_level, leveled_up
+
+    async def clear_vc_join_time(self, guild_id: int, user_id: int) -> None:
+        """VC参加時間をクリア（異常終了時用）"""
+        await self._db.execute("""
+            UPDATE user_levels SET vc_join_time = NULL
+            WHERE guild_id = ? AND user_id = ?
+        """, (guild_id, user_id))
+        await self._db.commit()
+
+    async def get_vc_leaderboard(self, guild_id: int, limit: int = 10) -> list[dict]:
+        """サーバーのVC時間ランキングを取得"""
+        async with self._db.execute("""
+            SELECT user_id, vc_time, vc_level FROM user_levels
+            WHERE guild_id = ? AND vc_time > 0
+            ORDER BY vc_time DESC
+            LIMIT ?
+        """, (guild_id, limit)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def get_user_vc_rank(self, guild_id: int, user_id: int) -> Optional[int]:
+        """ユーザーのVCランキング順位を取得"""
+        async with self._db.execute("""
+            SELECT COUNT(*) + 1 as rank FROM user_levels
+            WHERE guild_id = ? AND vc_time > (
+                SELECT COALESCE(vc_time, 0) FROM user_levels WHERE guild_id = ? AND user_id = ?
+            )
+        """, (guild_id, guild_id, user_id)) as cursor:
             row = await cursor.fetchone()
             if row:
                 return row["rank"]
