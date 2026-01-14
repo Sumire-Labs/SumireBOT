@@ -106,6 +106,24 @@ class Database:
                 bot_role_id INTEGER,
                 enabled INTEGER DEFAULT 1
             );
+
+            -- レベルシステム設定（サーバーごと）
+            CREATE TABLE IF NOT EXISTS leveling_settings (
+                guild_id INTEGER PRIMARY KEY,
+                enabled INTEGER DEFAULT 1,
+                ignored_channels TEXT DEFAULT '[]'
+            );
+
+            -- ユーザーレベルデータ
+            CREATE TABLE IF NOT EXISTS user_levels (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                xp INTEGER DEFAULT 0,
+                level INTEGER DEFAULT 0,
+                last_xp_time TIMESTAMP,
+                UNIQUE(guild_id, user_id)
+            );
         """)
         await self._db.commit()
 
