@@ -47,6 +47,7 @@ class SumireBot(commands.Bot):
             "cogs.translate",
             "cogs.music",
             "cogs.autorole",
+            "cogs.leveling",
         ]
 
         for cog in cogs:
