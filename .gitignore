@@ -1,5 +1,7 @@
 # 設定ファイル（機密情報を含む）
 config.yaml
+lavalink/application.yml
+lavalink/LavaLink/application.yml
 
 # データベース
 database/*.db
