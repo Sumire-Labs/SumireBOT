@@ -319,24 +319,22 @@ class Music(commands.Cog):
 
     def _get_source_info(self, track: wavelink.Playable, is_spotify_request: bool = False) -> str:
         """トラックのソース情報を取得"""
-        # トラックのsource属性を確認
-        source = getattr(track, 'source', None)
         uri = track.uri or ""
 
         # Spotifyリクエストの場合
         if is_spotify_request:
             if "soundcloud" in uri.lower():
                 return "Spotify → SoundCloud"
-            elif "spotify" in uri.lower():
-                return "Spotify → SoundCloud"
+            elif "youtube" in uri.lower():
+                return "Spotify → YouTube"
             else:
                 return "Spotify経由"
 
         # URI から判定
         if "soundcloud" in uri.lower():
             return "SoundCloud"
-        elif "spotify" in uri.lower():
-            return "Spotify → SoundCloud"
+        elif "music.youtube" in uri.lower():
+            return "YouTube Music"
         elif "youtube" in uri.lower():
             return "YouTube"
         else:
@@ -347,11 +345,12 @@ class Music(commands.Cog):
         uri = track.uri or ""
         if "soundcloud" in uri.lower():
             return "SoundCloud"
+        elif "music.youtube" in uri.lower():
+            return "YouTube Music"
         elif "youtube" in uri.lower():
             return "YouTube"
         else:
-            # LavaSrcでSpotify→SoundCloud変換された場合
-            return "SoundCloud"
+            return "ストリーム"
 
     async def _get_player(self, interaction: discord.Interaction) -> Optional[wavelink.Player]:
         """現在のプレイヤーを取得（エラーチェック付き）"""
@@ -440,7 +439,17 @@ class Music(commands.Cog):
                 logger.warning(f"Spotify検索エラー: {e}")
                 return ([], None, None)
 
-        # SoundCloud検索（曲名で検索）
+        # YouTube Music検索を優先（曲名で検索）
+        try:
+            logger.info(f"YouTube Music検索: {query}")
+            result = await wavelink.Playable.search(f"ytmsearch:{query}")
+            if result:
+                tracks = result if isinstance(result, list) else [result]
+                return (tracks[:1], None, "track")
+        except Exception as e:
+            logger.warning(f"YouTube Music検索エラー: {e}")
+
+        # フォールバック: SoundCloud検索
         try:
             logger.info(f"SoundCloud検索: {query}")
             result = await wavelink.Playable.search(f"scsearch:{query}")
@@ -448,14 +457,24 @@ class Music(commands.Cog):
                 tracks = result if isinstance(result, list) else [result]
                 return (tracks[:1], None, "track")
         except Exception as e:
-            logger.error(f"SoundCloud検索エラー: {e}")
+            logger.warning(f"SoundCloud検索エラー: {e}")
+
+        # 最終フォールバック: YouTube検索
+        try:
+            logger.info(f"YouTube検索: {query}")
+            result = await wavelink.Playable.search(f"ytsearch:{query}")
+            if result:
+                tracks = result if isinstance(result, list) else [result]
+                return (tracks[:1], None, "track")
+        except Exception as e:
+            logger.error(f"YouTube検索エラー: {e}")
 
         return ([], None, None)
 
     # ==================== コマンド ====================
 
     @app_commands.command(name="play", description="曲を再生またはキューに追加します")
-    @app_commands.describe(query="曲名または Spotify URL（プレイリスト/アルバムも対応）")
+    @app_commands.describe(query="曲名またはSpotify URL（YouTube Music/SoundCloud/YouTubeから検索）")
     async def play(self, interaction: discord.Interaction, query: str) -> None:
         """曲を再生"""
         player = await self._ensure_voice(interaction)
