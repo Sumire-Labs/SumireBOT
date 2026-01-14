@@ -87,23 +87,26 @@ class SumireBot(commands.Bot):
         """サーバー退出時"""
         self.logger.info(f"サーバーから退出: {guild.name} (ID: {guild.id})")
 
-    @tasks.loop(seconds=15)
+    @tasks.loop(seconds=5)
     async def update_status(self) -> None:
         """ステータスを定期更新（CPU・メモリ使用量表示）"""
         try:
-            # CPU使用率を別スレッドで測定
+            # CPU使用率を別スレッドで測定（システム全体とBotプロセス両方）
             def get_cpu():
-                # Processオブジェクトを再取得して正確な値を得る
+                # システム全体のCPU使用率
+                system_cpu = psutil.cpu_percent(interval=1.0)
+                # Botプロセスの使用率
                 proc = psutil.Process()
-                return proc.cpu_percent(interval=1.0)
+                bot_cpu = proc.cpu_percent(interval=0.1)
+                return system_cpu, bot_cpu
 
-            cpu_percent = await asyncio.to_thread(get_cpu)
+            system_cpu, bot_cpu = await asyncio.to_thread(get_cpu)
 
             # メモリ使用量（Bot プロセスのみ、MB単位）
             memory_mb = self._process.memory_info().rss / 1024 / 1024
 
-            # ステータス文字列
-            status_text = f"CPU {cpu_percent:.1f}% | RAM {memory_mb:.0f}MB | {len(self.guilds)}サーバー"
+            # ステータス文字列（システム/Bot の形式）
+            status_text = f"CPU {system_cpu:.0f}%/{bot_cpu:.1f}% | RAM {memory_mb:.0f}MB | {len(self.guilds)}サーバー"
 
             activity = discord.Activity(
                 type=discord.ActivityType.watching,
