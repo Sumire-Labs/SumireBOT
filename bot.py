@@ -6,7 +6,8 @@ from __future__ import annotations
 
 import asyncio
 import discord
-from discord.ext import commands
+import psutil
+from discord.ext import commands, tasks
 
 from utils.config import Config
 from utils.database import Database
@@ -32,6 +33,7 @@ class SumireBot(commands.Bot):
 
         self.db = Database()
         self.logger = get_logger("sumire")
+        self._process = psutil.Process()
 
     async def setup_hook(self) -> None:
         """Bot起動時の初期化処理"""
@@ -71,39 +73,51 @@ class SumireBot(commands.Bot):
         self.logger.info(f"ログイン完了: {self.user} (ID: {self.user.id})")
         self.logger.info(f"接続サーバー数: {len(self.guilds)}")
 
-        # ステータス設定
-        activity = discord.Activity(
-            type=discord.ActivityType.watching,
-            name=f"{len(self.guilds)} サーバー"
-        )
-        await self.change_presence(activity=activity)
+        # ステータス更新タスクを開始
+        if not self.update_status.is_running():
+            self.update_status.start()
 
     async def on_guild_join(self, guild: discord.Guild) -> None:
         """サーバー参加時"""
         await self.db.ensure_guild(guild.id)
         self.logger.info(f"新しいサーバーに参加: {guild.name} (ID: {guild.id})")
 
-        # ステータス更新
-        activity = discord.Activity(
-            type=discord.ActivityType.watching,
-            name=f"{len(self.guilds)} サーバー"
-        )
-        await self.change_presence(activity=activity)
-
     async def on_guild_remove(self, guild: discord.Guild) -> None:
         """サーバー退出時"""
         self.logger.info(f"サーバーから退出: {guild.name} (ID: {guild.id})")
 
-        # ステータス更新
-        activity = discord.Activity(
-            type=discord.ActivityType.watching,
-            name=f"{len(self.guilds)} サーバー"
-        )
-        await self.change_presence(activity=activity)
+    @tasks.loop(seconds=30)
+    async def update_status(self) -> None:
+        """ステータスを定期更新（CPU・メモリ使用量表示）"""
+        try:
+            # CPU使用率（Bot プロセスのみ）
+            cpu_percent = self._process.cpu_percent()
+
+            # メモリ使用量（Bot プロセスのみ、MB単位）
+            memory_mb = self._process.memory_info().rss / 1024 / 1024
+
+            # ステータス文字列
+            status_text = f"CPU {cpu_percent:.1f}% | RAM {memory_mb:.0f}MB | {len(self.guilds)}サーバー"
+
+            activity = discord.Activity(
+                type=discord.ActivityType.watching,
+                name=status_text
+            )
+            await self.change_presence(activity=activity)
+
+        except Exception as e:
+            self.logger.error(f"ステータス更新エラー: {e}")
+
+    @update_status.before_loop
+    async def before_update_status(self) -> None:
+        """ステータス更新タスク開始前にBotの準備を待つ"""
+        await self.wait_until_ready()
 
     async def close(self) -> None:
         """Bot終了時のクリーンアップ"""
         self.logger.info("Botを終了します...")
+        if self.update_status.is_running():
+            self.update_status.cancel()
         await self.db.close()
         await super().close()
 

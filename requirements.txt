@@ -15,3 +15,6 @@ wavelink>=3.4.0
 
 # Type hints (development)
 typing-extensions>=4.0.0
+
+# System monitoring
+psutil>=5.9.0
