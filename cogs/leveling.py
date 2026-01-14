@@ -28,6 +28,137 @@ XP_MAX = 25
 XP_COOLDOWN_SECONDS = 60
 
 
+class RankView(ui.LayoutView):
+    """
+    ランク表示用View
+    Components V2 (LayoutView + Container) を使用
+    """
+
+    def __init__(
+        self,
+        target: discord.User,
+        level: int,
+        xp: int,
+        text_rank: int,
+        vc_level: int,
+        vc_time: int,
+        vc_rank: int
+    ) -> None:
+        super().__init__(timeout=300)
+
+        next_level_xp = (level + 1) * 100
+
+        # プログレスバー計算
+        text_progress = int((xp / next_level_xp) * 10) if next_level_xp > 0 else 10
+        text_bar = "█" * text_progress + "░" * (10 - text_progress)
+        text_percentage = int((xp / next_level_xp) * 100) if next_level_xp > 0 else 100
+
+        vc_progress_seconds = vc_time % 3600
+        vc_progress = int((vc_progress_seconds / 3600) * 10)
+        vc_bar = "█" * vc_progress + "░" * (10 - vc_progress)
+        vc_percentage = int((vc_progress_seconds / 3600) * 100)
+
+        # VC時間フォーマット
+        hours = vc_time // 3600
+        minutes = (vc_time % 3600) // 60
+        if hours > 0:
+            vc_time_str = f"{hours}時間{minutes}分"
+        elif minutes > 0:
+            vc_time_str = f"{minutes}分"
+        else:
+            vc_time_str = "0分"
+
+        # Container を作成
+        container = ui.Container(accent_colour=discord.Colour.blurple())
+
+        # ヘッダーセクション
+        header_section = ui.Section(
+            ui.TextDisplay(f"# {target.display_name} のステータス"),
+            accessory=ui.Thumbnail(target.display_avatar.url)
+        )
+        container.add_item(header_section)
+        container.add_item(ui.Separator())
+
+        # テキストレベルセクション
+        container.add_item(ui.TextDisplay(
+            f"### 💬 テキストレベル\n"
+            f"**Lv.{level}** (#{text_rank if text_rank else 'N/A'})\n"
+            f"{xp} / {next_level_xp} XP\n"
+            f"`{text_bar}` {text_percentage}%"
+        ))
+
+        container.add_item(ui.Separator())
+
+        # VCレベルセクション
+        container.add_item(ui.TextDisplay(
+            f"### 🎤 VCレベル\n"
+            f"**Lv.{vc_level}** (#{vc_rank if vc_rank else 'N/A'})\n"
+            f"合計: {vc_time_str}\n"
+            f"`{vc_bar}` {vc_percentage}%"
+        ))
+
+        container.add_item(ui.Separator())
+        container.add_item(ui.TextDisplay(f"-# ユーザーID: {target.id}"))
+
+        self.add_item(container)
+
+
+class LeaderboardView(ui.LayoutView):
+    """
+    ランキング表示用View
+    Components V2 (LayoutView + Container) を使用
+    """
+
+    def __init__(
+        self,
+        guild: discord.Guild,
+        text_leaderboard: list[dict],
+        vc_leaderboard: list[dict]
+    ) -> None:
+        super().__init__(timeout=300)
+
+        medals = ["🥇", "🥈", "🥉"]
+
+        # Container を作成
+        container = ui.Container(accent_colour=discord.Colour.gold())
+
+        # ヘッダー
+        if guild.icon:
+            header_section = ui.Section(
+                ui.TextDisplay(f"# 🏆 サーバーランキング\n**{guild.name}** のトップ10"),
+                accessory=ui.Thumbnail(guild.icon.url)
+            )
+            container.add_item(header_section)
+        else:
+            container.add_item(ui.TextDisplay(f"# 🏆 サーバーランキング\n**{guild.name}** のトップ10"))
+
+        container.add_item(ui.Separator())
+
+        # テキストランキング
+        if text_leaderboard:
+            text_ranking = ""
+            for idx, data in enumerate(text_leaderboard, 1):
+                medal = medals[idx - 1] if idx <= 3 else f"**{idx}.**"
+                text_ranking += f"{medal} <@{data['user_id']}> Lv.**{data['level']}**\n"
+            container.add_item(ui.TextDisplay(f"### 💬 テキストランキング\n{text_ranking}"))
+        else:
+            container.add_item(ui.TextDisplay("### 💬 テキストランキング\nデータなし"))
+
+        container.add_item(ui.Separator())
+
+        # VCランキング
+        if vc_leaderboard:
+            vc_ranking = ""
+            for idx, data in enumerate(vc_leaderboard, 1):
+                medal = medals[idx - 1] if idx <= 3 else f"**{idx}.**"
+                vc_ranking += f"{medal} <@{data['user_id']}> Lv.**{data['vc_level']}**\n"
+            container.add_item(ui.TextDisplay(f"### 🎤 VCランキング\n{vc_ranking}"))
+        else:
+            container.add_item(ui.TextDisplay("### 🎤 VCランキング\nデータなし"))
+
+        self.add_item(container)
+
+
 class LevelingSettingsView(ui.LayoutView):
     """
     レベルシステム設定パネル
@@ -280,8 +411,6 @@ class Leveling(commands.Cog):
         user: Optional[discord.User] = None
     ) -> None:
         """ユーザーのレベルを表示"""
-        await interaction.response.defer()
-
         target = user or interaction.user
         guild_id = interaction.guild.id
 
@@ -293,66 +422,29 @@ class Leveling(commands.Cog):
                 title="レベル情報",
                 description=f"{target.mention} はまだレベルデータがありません。\nメッセージを送信またはVCに参加しましょう！"
             )
-            await interaction.followup.send(embed=embed)
+            await interaction.response.send_message(embed=embed)
             return
-
-        # テキストレベル情報
-        level = user_data["level"]
-        xp = user_data["xp"]
-        next_level_xp = (level + 1) * 100
-
-        # VCレベル情報
-        vc_time = user_data.get("vc_time", 0)
-        vc_level = user_data.get("vc_level", 0)
-        next_vc_level_time = (vc_level + 1) * 3600  # 次のレベルまでの秒数
 
         # ランキング順位を取得
         text_rank = await self.db.get_user_rank(guild_id, target.id)
         vc_rank = await self.db.get_user_vc_rank(guild_id, target.id)
 
-        embed = self.embed_builder.create(
-            title=f"{target.display_name} のステータス",
-            color=target.accent_color or self.config.embed_color
+        # Components V2 Viewを作成
+        view = RankView(
+            target=target,
+            level=user_data["level"],
+            xp=user_data["xp"],
+            text_rank=text_rank,
+            vc_level=user_data.get("vc_level", 0),
+            vc_time=user_data.get("vc_time", 0),
+            vc_rank=vc_rank
         )
 
-        # テキストレベルセクション
-        text_progress = int((xp / next_level_xp) * 10) if next_level_xp > 0 else 10
-        text_bar = "█" * text_progress + "░" * (10 - text_progress)
-        text_percentage = int((xp / next_level_xp) * 100) if next_level_xp > 0 else 100
-
-        embed.add_field(
-            name="テキストレベル",
-            value=f"**Lv.{level}** (#{text_rank if text_rank else 'N/A'})\n"
-                  f"{xp} / {next_level_xp} XP\n"
-                  f"`{text_bar}` {text_percentage}%",
-            inline=True
-        )
-
-        # VCレベルセクション
-        vc_progress_seconds = vc_time % 3600  # 現在のレベル内での秒数
-        vc_progress = int((vc_progress_seconds / 3600) * 10)
-        vc_bar = "█" * vc_progress + "░" * (10 - vc_progress)
-        vc_percentage = int((vc_progress_seconds / 3600) * 100)
-
-        embed.add_field(
-            name="VCレベル",
-            value=f"**Lv.{vc_level}** (#{vc_rank if vc_rank else 'N/A'})\n"
-                  f"合計: {self._format_time(vc_time)}\n"
-                  f"`{vc_bar}` {vc_percentage}%",
-            inline=True
-        )
-
-        embed.set_author(name=str(target), icon_url=target.display_avatar.url)
-        embed.set_thumbnail(url=target.display_avatar.url)
-        embed.set_footer(text=f"ユーザーID: {target.id}")
-
-        await interaction.followup.send(embed=embed)
+        await interaction.response.send_message(view=view)
 
     @app_commands.command(name="leaderboard", description="サーバーのレベルランキングを表示します")
     async def leaderboard(self, interaction: discord.Interaction) -> None:
         """サーバーのランキングを表示"""
-        await interaction.response.defer()
-
         guild_id = interaction.guild.id
         text_leaderboard = await self.db.get_leaderboard(guild_id, limit=10)
         vc_leaderboard = await self.db.get_vc_leaderboard(guild_id, limit=10)
@@ -362,59 +454,17 @@ class Leveling(commands.Cog):
                 title="ランキング",
                 description="まだランキングデータがありません。\nメッセージを送信またはVCに参加しましょう！"
             )
-            await interaction.followup.send(embed=embed)
+            await interaction.response.send_message(embed=embed)
             return
 
-        embed = self.embed_builder.create(
-            title="🏆 サーバーランキング",
-            description=f"**{interaction.guild.name}** のトップ10",
-            color=0xFFD700
+        # Components V2 Viewを作成
+        view = LeaderboardView(
+            guild=interaction.guild,
+            text_leaderboard=text_leaderboard,
+            vc_leaderboard=vc_leaderboard
         )
 
-        medals = ["🥇", "🥈", "🥉"]
-
-        # テキストランキング
-        if text_leaderboard:
-            text_ranking = ""
-            for idx, data in enumerate(text_leaderboard, 1):
-                medal = medals[idx - 1] if idx <= 3 else f"**{idx}.**"
-                text_ranking += f"{medal} <@{data['user_id']}> Lv.**{data['level']}**\n"
-
-            embed.add_field(
-                name="テキストランキング",
-                value=text_ranking[:1024],
-                inline=True
-            )
-        else:
-            embed.add_field(
-                name="テキストランキング",
-                value="データなし",
-                inline=True
-            )
-
-        # VCランキング
-        if vc_leaderboard:
-            vc_ranking = ""
-            for idx, data in enumerate(vc_leaderboard, 1):
-                medal = medals[idx - 1] if idx <= 3 else f"**{idx}.**"
-                vc_ranking += f"{medal} <@{data['user_id']}> Lv.**{data['vc_level']}**\n"
-
-            embed.add_field(
-                name="VCランキング",
-                value=vc_ranking[:1024],
-                inline=True
-            )
-        else:
-            embed.add_field(
-                name="🎤 VCランキング",
-                value="データなし",
-                inline=True
-            )
-
-        embed.set_thumbnail(url=interaction.guild.icon.url if interaction.guild.icon else None)
-        embed.set_footer(text=f"リクエスト: {interaction.user}")
-
-        await interaction.followup.send(embed=embed)
+        await interaction.response.send_message(view=view)
 
     @app_commands.command(name="leveling", description="レベルシステムを設定します")
     @app_commands.default_permissions(administrator=True)
