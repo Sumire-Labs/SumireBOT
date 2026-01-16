@@ -173,8 +173,17 @@ class Music(commands.Cog):
             # キューの末尾に追加
             player.queue.put(payload.track)
 
+        # キューに曲があれば次を再生
+        if not player.queue.is_empty:
+            try:
+                next_track = player.queue.get()
+                await player.play(next_track)
+            except Exception as e:
+                logger.error(f"次のトラック再生エラー: {e}")
+            return
+
         # キューが空になったら自動退出タイマーを開始
-        if player.queue.is_empty and not player.playing:
+        if not player.playing:
             self._start_auto_leave_timer(guild_id, player)
 
     @commands.Cog.listener()
