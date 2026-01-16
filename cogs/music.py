@@ -125,6 +125,11 @@ class Music(commands.Cog):
         if not player:
             return
 
+        # autoplayを確実に無効化（知らない曲が流れる問題を防止）
+        if player.autoplay != wavelink.AutoPlayMode.disabled:
+            player.autoplay = wavelink.AutoPlayMode.disabled
+            logger.debug("autoplayを無効化しました")
+
         guild_id = player.guild.id
 
         # 自動退出タイマーをキャンセル
@@ -159,6 +164,16 @@ class Music(commands.Cog):
         """トラック再生終了"""
         player = payload.player
         if not player:
+            return
+
+        # 終了理由をログに記録
+        reason = str(payload.reason) if payload.reason else "unknown"
+        logger.debug(f"トラック終了: reason={reason}, track={payload.track.title if payload.track else 'None'}")
+
+        # 正常終了（FINISHED）以外は処理しない
+        # REPLACED, STOPPED, LOAD_FAILED, CLEANUP などは無視
+        if payload.reason and "finished" not in reason.lower():
+            logger.debug(f"正常終了ではないためスキップ: reason={reason}")
             return
 
         guild_id = player.guild.id
