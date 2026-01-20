@@ -40,3 +40,4 @@ from .poll_views import (
     PollEndedView
 )
 from .profile_views import ProfileView
+from .confess_views import ConfessView

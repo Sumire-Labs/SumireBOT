@@ -14,12 +14,13 @@ from utils.checks import handle_app_command_error
 
 from .translate import TranslateMixin
 from .logger import LoggerMixin
+from .confess import ConfessMixin
 
 if TYPE_CHECKING:
     from bot import SumireBot
 
 
-class Utility(TranslateMixin, LoggerMixin, commands.Cog):
+class Utility(TranslateMixin, LoggerMixin, ConfessMixin, commands.Cog):
     """ユーティリティ機能"""
 
     def __init__(self, bot: SumireBot) -> None:
