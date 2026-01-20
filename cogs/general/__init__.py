@@ -10,12 +10,13 @@ from discord.ext import commands
 from utils.config import Config
 from .ping import PingMixin
 from .avatar import AvatarMixin
+from .profile import ProfileMixin
 
 if TYPE_CHECKING:
     from bot import SumireBot
 
 
-class General(PingMixin, AvatarMixin, commands.Cog):
+class General(PingMixin, AvatarMixin, ProfileMixin, commands.Cog):
     """一般コマンド"""
 
     def __init__(self, bot: SumireBot) -> None:

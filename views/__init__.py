@@ -39,3 +39,4 @@ from .poll_views import (
     PollView,
     PollEndedView
 )
+from .profile_views import ProfileView
