@@ -1,12 +1,10 @@
 """
-Avatar コマンド Cog
-Components V2 を使用
+Avatar コマンド
 """
 from __future__ import annotations
 
 import discord
 from discord import app_commands, ui
-from discord.ext import commands
 from typing import Optional
 
 from utils.config import Config
@@ -29,14 +27,13 @@ class AvatarView(ui.LayoutView):
         config = Config()
         color = accent_color or config.embed_color
 
-        # メインコンテナ
         container = ui.Container(accent_colour=color)
 
         # ヘッダー
         container.add_item(ui.TextDisplay(f"# 👤 {target.display_name} のアバター"))
         container.add_item(ui.Separator())
 
-        # アバター画像（MediaGallery使用）
+        # アバター画像
         gallery = ui.MediaGallery()
         gallery.add_item(ui.MediaGalleryItem(media=avatar_url))
         container.add_item(gallery)
@@ -63,7 +60,7 @@ class AvatarView(ui.LayoutView):
 
         self.add_item(container)
 
-        # ダウンロードボタン（ActionRow）
+        # ダウンロードボタン
         action_row = ui.ActionRow()
         action_row.add_item(ui.Button(
             label="アバターをダウンロード",
@@ -83,12 +80,8 @@ class AvatarView(ui.LayoutView):
         self.add_item(action_row)
 
 
-class Avatar(commands.Cog):
-    """Avatarコマンド"""
-
-    def __init__(self, bot: commands.Bot) -> None:
-        self.bot = bot
-        self.config = Config()
+class AvatarMixin:
+    """Avatarコマンド Mixin"""
 
     @app_commands.command(name="avatar", description="ユーザーのアバターを表示します")
     @app_commands.describe(user="アバターを表示するユーザー（省略で自分）")
@@ -97,30 +90,25 @@ class Avatar(commands.Cog):
         interaction: discord.Interaction,
         user: Optional[discord.User] = None
     ) -> None:
-        """ユーザーのアバターとバナーを表示するコマンド"""
+        """ユーザーのアバターとバナーを表示"""
         await interaction.response.defer()
 
         target = user or interaction.user
 
-        # ユーザー情報を取得（バナー取得のため）
         try:
             fetched_user = await self.bot.fetch_user(target.id)
         except discord.NotFound:
             fetched_user = target
 
-        # アバターURL
         avatar_url = target.display_avatar.url
         global_avatar_url = target.avatar.url if target.avatar else None
 
-        # サーバー固有アバター（メンバーの場合）
         server_avatar_url = None
         if isinstance(target, discord.Member) and target.guild_avatar:
             server_avatar_url = target.guild_avatar.url
 
-        # バナーURL
         banner_url = fetched_user.banner.url if fetched_user.banner else None
 
-        # Components V2 Viewを作成
         view = AvatarView(
             target=target,
             avatar_url=avatar_url,
@@ -131,8 +119,3 @@ class Avatar(commands.Cog):
         )
 
         await interaction.followup.send(view=view)
-
-
-async def setup(bot: commands.Bot) -> None:
-    """Cogのセットアップ"""
-    await bot.add_cog(Avatar(bot))

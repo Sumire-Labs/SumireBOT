@@ -1,31 +1,25 @@
 """
-自動ロール付与 Cog
-サーバー参加時に自動でロールを付与する機能
+AutoRole コマンドとイベント
 """
 from __future__ import annotations
+
+from typing import Optional
 
 import discord
 from discord import app_commands, ui
 from discord.ext import commands
-from typing import TYPE_CHECKING, Optional
 
 from utils.config import Config
 from utils.database import Database
 from utils.embeds import EmbedBuilder
 from utils.logging import get_logger
-from utils.checks import Checks, handle_app_command_error
+from utils.checks import Checks
 
-if TYPE_CHECKING:
-    from bot import SumireBot
-
-logger = get_logger("sumire.cogs.autorole")
+logger = get_logger("sumire.cogs.admin.autorole")
 
 
 class AutoRoleSettingsView(ui.LayoutView):
-    """
-    自動ロール設定パネル
-    Components V2 (LayoutView + Container) を使用
-    """
+    """自動ロール設定パネル (Components V2)"""
 
     def __init__(
         self,
@@ -39,7 +33,6 @@ class AutoRoleSettingsView(ui.LayoutView):
         self.db = Database()
         self.config = Config()
 
-        # Container を作成
         container = ui.Container(accent_colour=discord.Colour.purple())
 
         # ヘッダー
@@ -110,7 +103,6 @@ class AutoRoleSettingsView(ui.LayoutView):
         ))
         container.add_item(button_row)
 
-        # ContainerをLayoutViewに追加
         self.add_item(container)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -159,7 +151,6 @@ class AutoRoleSettingsView(ui.LayoutView):
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
 
-        # 権限チェック
         if role >= interaction.guild.me.top_role:
             embed = EmbedBuilder().error(
                 title="権限エラー",
@@ -176,7 +167,6 @@ class AutoRoleSettingsView(ui.LayoutView):
                        f"新しく参加した人間メンバーにこのロールが自動付与されます。"
         )
         await interaction.followup.send(embed=embed, ephemeral=True)
-
         logger.info(f"AutoRole 人間用ロール設定: {role.name} in {interaction.guild.name}")
 
     async def set_bot_role(self, interaction: discord.Interaction) -> None:
@@ -203,7 +193,6 @@ class AutoRoleSettingsView(ui.LayoutView):
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
 
-        # 権限チェック
         if role >= interaction.guild.me.top_role:
             embed = EmbedBuilder().error(
                 title="権限エラー",
@@ -220,7 +209,6 @@ class AutoRoleSettingsView(ui.LayoutView):
                        f"新しく参加したBotにこのロールが自動付与されます。"
         )
         await interaction.followup.send(embed=embed, ephemeral=True)
-
         logger.info(f"AutoRole Bot用ロール設定: {role.name} in {interaction.guild.name}")
 
     async def toggle_enabled(self, interaction: discord.Interaction) -> None:
@@ -239,7 +227,6 @@ class AutoRoleSettingsView(ui.LayoutView):
             description=f"ステータス: {'🟢 有効' if new_enabled else '🔴 無効'}"
         )
         await interaction.followup.send(embed=embed, ephemeral=True)
-
         logger.info(f"AutoRole {status_text}: {interaction.guild.name}")
 
     async def clear_role(self, interaction: discord.Interaction, role_type: str) -> None:
@@ -254,30 +241,21 @@ class AutoRoleSettingsView(ui.LayoutView):
             description=f"{type_text}ロールの設定を解除しました。"
         )
         await interaction.followup.send(embed=embed, ephemeral=True)
-
         logger.info(f"AutoRole {type_text}ロールクリア: {interaction.guild.name}")
 
 
-class AutoRole(commands.Cog):
-    """自動ロール付与"""
-
-    def __init__(self, bot: SumireBot) -> None:
-        self.bot = bot
-        self.config = Config()
-        self.db = Database()
-        self.embed_builder = EmbedBuilder()
+class AutoRoleMixin:
+    """AutoRoleコマンドとイベント Mixin"""
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
         """メンバー参加時のロール付与"""
         guild = member.guild
 
-        # 設定を取得
         settings = await self.db.get_autorole_settings(guild.id)
         if not settings or not settings.get("enabled", 1):
             return
 
-        # 付与するロールを決定
         if member.bot:
             role_id = settings.get("bot_role_id")
             role_type = "Bot"
@@ -293,7 +271,6 @@ class AutoRole(commands.Cog):
             logger.warning(f"AutoRole: ロールが見つかりません role_id={role_id}")
             return
 
-        # 権限チェック
         if role >= guild.me.top_role:
             logger.warning(f"AutoRole: 権限不足でロールを付与できません role={role.name}")
             return
@@ -319,7 +296,6 @@ class AutoRole(commands.Cog):
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
-        # 現在の設定を取得
         settings = await self.db.get_autorole_settings(interaction.guild.id)
 
         human_role = None
@@ -333,7 +309,6 @@ class AutoRole(commands.Cog):
                 bot_role = interaction.guild.get_role(settings["bot_role_id"])
             enabled = bool(settings.get("enabled", 1))
 
-        # 設定パネルを表示
         view = AutoRoleSettingsView(
             guild=interaction.guild,
             human_role=human_role,
@@ -342,18 +317,3 @@ class AutoRole(commands.Cog):
         )
 
         await interaction.response.send_message(view=view, ephemeral=True)
-
-    # ==================== エラーハンドリング ====================
-
-    async def cog_app_command_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError
-    ) -> None:
-        """コマンドエラーハンドリング"""
-        await handle_app_command_error(interaction, error, "AutoRole")
-
-
-async def setup(bot: commands.Bot) -> None:
-    """Cogのセットアップ"""
-    await bot.add_cog(AutoRole(bot))

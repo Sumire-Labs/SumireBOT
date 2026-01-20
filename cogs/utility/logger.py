@@ -1,19 +1,15 @@
 """
-ログシステム Cog
-サーバーイベントをログチャンネルに記録
-Components V2 (LayoutView) を使用
+ログシステム コマンドとイベント
 """
 from __future__ import annotations
+
+from typing import Optional, Union
 
 import discord
 from discord import app_commands
 from discord.ext import commands
-from typing import Optional, Union
 
-from utils.config import Config
-from utils.database import Database
-from utils.embeds import EmbedBuilder
-from utils.checks import Checks, handle_app_command_error
+from utils.checks import Checks
 from utils.logging import get_logger
 from views.log_views import (
     LogMessageDeleteView,
@@ -29,17 +25,11 @@ from views.log_views import (
     LogRoleUpdateView
 )
 
-logger = get_logger("sumire.cogs.logger")
+logger = get_logger("sumire.cogs.utility.logger")
 
 
-class Logger(commands.Cog):
-    """サーバーログシステム"""
-
-    def __init__(self, bot: commands.Bot) -> None:
-        self.bot = bot
-        self.config = Config()
-        self.db = Database()
-        self.embed_builder = EmbedBuilder()
+class LoggerMixin:
+    """ログシステム Mixin"""
 
     async def _get_log_channel(self, guild_id: int) -> Optional[discord.TextChannel]:
         """ログチャンネルを取得"""
@@ -68,9 +58,21 @@ class Logger(commands.Cog):
 
         setting_key = type_map.get(log_type)
         if not setting_key:
-            return True  # 未定義のタイプはデフォルトでTrue
+            return True
 
         return bool(settings.get(setting_key, True))
+
+    def _get_channel_type_name(self, channel: discord.abc.GuildChannel) -> str:
+        """チャンネルタイプの日本語名を取得"""
+        type_names = {
+            discord.ChannelType.text: "テキストチャンネル",
+            discord.ChannelType.voice: "ボイスチャンネル",
+            discord.ChannelType.category: "カテゴリ",
+            discord.ChannelType.news: "ニュースチャンネル",
+            discord.ChannelType.stage_voice: "ステージチャンネル",
+            discord.ChannelType.forum: "フォーラムチャンネル",
+        }
+        return type_names.get(channel.type, str(channel.type))
 
     # ==================== コマンド ====================
 
@@ -78,36 +80,28 @@ class Logger(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     @Checks.is_admin()
     async def logger_command(self, interaction: discord.Interaction) -> None:
-        """
-        ログシステムを設定するコマンド
-        実行チャンネルをログ出力先として設定
-        """
+        """ログシステムを設定するコマンド"""
         await interaction.response.defer(ephemeral=True)
 
         guild_id = interaction.guild_id
         channel_id = interaction.channel_id
 
-        # 現在の設定を取得
         current_settings = await self.db.get_logger_settings(guild_id)
 
         if current_settings and current_settings.get("enabled"):
-            # 既に有効な場合は、トグル or 設定変更
             if current_settings.get("channel_id") == channel_id:
-                # 同じチャンネルなら無効化
                 await self.db.disable_logger(guild_id)
                 embed = self.embed_builder.warning(
                     title="ログシステムを無効化しました",
                     description="サーバーログの記録を停止しました。"
                 )
             else:
-                # 別チャンネルなら更新
                 await self.db.set_logger_channel(guild_id, channel_id)
                 embed = self.embed_builder.success(
                     title="ログチャンネルを変更しました",
                     description=f"ログ出力先を {interaction.channel.mention} に変更しました。"
                 )
         else:
-            # 新規設定
             await self.db.set_logger_channel(guild_id, channel_id)
             embed = self.embed_builder.success(
                 title="ログシステムを有効化しました",
@@ -142,7 +136,6 @@ class Logger(commands.Cog):
             return
 
         content = message.content or ""
-        # 添付ファイル情報を追加
         if message.attachments:
             attachments = "\n".join([f"📎 {a.filename}" for a in message.attachments])
             if content:
@@ -169,7 +162,6 @@ class Logger(commands.Cog):
         if not after.guild or after.author.bot:
             return
 
-        # 内容が変わっていない場合はスキップ（ピン留め等）
         if before.content == after.content:
             return
 
@@ -226,8 +218,8 @@ class Logger(commands.Cog):
     # ==================== メンバーイベント ====================
 
     @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member) -> None:
-        """メンバー参加イベント"""
+    async def on_logger_member_join(self, member: discord.Member) -> None:
+        """メンバー参加イベント（ログ用）"""
         if not await self._should_log(member.guild.id, "members"):
             return
 
@@ -355,18 +347,6 @@ class Logger(commands.Cog):
                 logger.warning(f"ログ送信権限なし: guild_id={after.guild.id}")
 
     # ==================== チャンネルイベント ====================
-
-    def _get_channel_type_name(self, channel: discord.abc.GuildChannel) -> str:
-        """チャンネルタイプの日本語名を取得"""
-        type_names = {
-            discord.ChannelType.text: "テキストチャンネル",
-            discord.ChannelType.voice: "ボイスチャンネル",
-            discord.ChannelType.category: "カテゴリ",
-            discord.ChannelType.news: "ニュースチャンネル",
-            discord.ChannelType.stage_voice: "ステージチャンネル",
-            discord.ChannelType.forum: "フォーラムチャンネル",
-        }
-        return type_names.get(channel.type, str(channel.type))
 
     @commands.Cog.listener()
     async def on_guild_channel_create(self, channel: discord.abc.GuildChannel) -> None:
@@ -534,18 +514,3 @@ class Logger(commands.Cog):
             await channel.send(view=view)
         except discord.Forbidden:
             logger.warning(f"ログ送信権限なし: guild_id={after.guild.id}")
-
-    # ==================== エラーハンドリング ====================
-
-    async def cog_app_command_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError
-    ) -> None:
-        """コマンドエラーハンドリング"""
-        await handle_app_command_error(interaction, error, "Logger")
-
-
-async def setup(bot: commands.Bot) -> None:
-    """Cogのセットアップ"""
-    await bot.add_cog(Logger(bot))

@@ -7,6 +7,8 @@ bot:
   token: "YOUR_BOT_TOKEN_HERE"
   # BOT説明文
   description: "すみれBot v2 - 多機能Discord BOT"
+  # BotオーナーのDiscord ID（restartコマンド等に使用）
+  owner_id: 0
 
 # 翻訳API設定
 translate:

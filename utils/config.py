@@ -62,6 +62,11 @@ class Config:
         """BOT説明文"""
         return self.get("bot", "description", default="すみれBot v2")
 
+    @property
+    def owner_id(self) -> int:
+        """BotオーナーのDiscord ID"""
+        return self.get("bot", "owner_id", default=0)
+
     # UI設定
     @property
     def embed_color(self) -> int:

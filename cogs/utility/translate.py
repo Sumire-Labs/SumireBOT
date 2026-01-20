@@ -1,16 +1,13 @@
 """
-翻訳機能 Cog
-Google Translate (googletrans-py) を使用
-Components V2 を使用
+翻訳コマンド
 """
 from __future__ import annotations
 
-import discord
-from discord import app_commands, ui
-from discord.ext import commands
 from typing import Optional
 
-from utils.config import Config
+import discord
+from discord import app_commands, ui
+
 from utils.logging import get_logger
 
 try:
@@ -20,7 +17,7 @@ except ImportError:
     TRANSLATOR_AVAILABLE = False
     LANGUAGES = {}
 
-logger = get_logger("sumire.cogs.translate")
+logger = get_logger("sumire.cogs.utility.translate")
 
 # サポート言語の日本語名マッピング（主要なもの）
 LANGUAGE_NAMES_JA = {
@@ -74,7 +71,6 @@ def get_language_name(code: str) -> str:
     return code
 
 
-# 言語選択用のオートコンプリート
 async def language_autocomplete(
     interaction: discord.Interaction,
     current: str
@@ -160,13 +156,11 @@ class TranslateErrorView(ui.LayoutView):
         self.add_item(container)
 
 
-class Translate(commands.Cog):
-    """翻訳機能"""
+class TranslateMixin:
+    """翻訳コマンド Mixin"""
 
-    def __init__(self, bot: commands.Bot) -> None:
-        self.bot = bot
-        self.config = Config()
-
+    def _init_translator(self) -> None:
+        """翻訳機能の初期化"""
         if TRANSLATOR_AVAILABLE:
             self.translator = Translator()
         else:
@@ -247,8 +241,3 @@ class Translate(commands.Cog):
                 description="翻訳中にエラーが発生しました。\nしばらく待ってから再度お試しください。"
             )
             await interaction.followup.send(view=view)
-
-
-async def setup(bot: commands.Bot) -> None:
-    """Cogのセットアップ"""
-    await bot.add_cog(Translate(bot))
