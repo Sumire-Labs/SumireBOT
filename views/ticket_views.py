@@ -10,13 +10,42 @@ from typing import TYPE_CHECKING, Optional
 
 from utils.config import Config
 from utils.database import Database
-from utils.embeds import EmbedBuilder
 from utils.logging import get_logger
+from views.common_views import (
+    CommonErrorView,
+    CommonSuccessView,
+    CommonInfoView,
+    CommonWarningView
+)
 
 if TYPE_CHECKING:
     from bot import SumireBot
 
 logger = get_logger("sumire.views.ticket")
+
+
+class TicketWelcomeView(ui.LayoutView):
+    """チケットウェルカムメッセージ用View"""
+
+    def __init__(self, ticket_number: int, user: discord.Member) -> None:
+        super().__init__(timeout=300)
+
+        container = ui.Container(accent_colour=discord.Colour.purple())
+
+        container.add_item(ui.TextDisplay(f"# 🎫 チケット #{ticket_number:03d}"))
+        container.add_item(ui.Separator())
+        container.add_item(ui.TextDisplay(
+            f"{user.mention} さん、チケットを作成していただきありがとうございます。\n\n"
+            f"お問い合わせ内容をこちらにご記入ください。\n"
+            f"スタッフが対応いたします。"
+        ))
+        container.add_item(ui.Separator())
+        container.add_item(ui.TextDisplay(
+            f"**作成者:** {user.mention}\n"
+            f"**ステータス:** 🟢 オープン"
+        ))
+
+        self.add_item(container)
 
 
 class TicketPanelView(ui.LayoutView):
@@ -89,21 +118,21 @@ class TicketPanelView(ui.LayoutView):
         # チケット設定を取得
         settings = await self.db.get_ticket_settings(guild.id)
         if not settings or not settings.get("category_id"):
-            embed = EmbedBuilder().error(
+            view = CommonErrorView(
                 title="設定エラー",
                 description="チケットシステムが正しく設定されていません。"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
             return
 
         # カテゴリを取得
         category = guild.get_channel(settings["category_id"])
         if not category:
-            embed = EmbedBuilder().error(
+            view = CommonErrorView(
                 title="設定エラー",
                 description="チケットカテゴリが見つかりません。"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
             return
 
         # チケット番号を取得
@@ -137,19 +166,19 @@ class TicketPanelView(ui.LayoutView):
                 reason=f"チケット作成: {user}"
             )
         except discord.Forbidden:
-            embed = EmbedBuilder().error(
+            view = CommonErrorView(
                 title="権限エラー",
                 description="チャンネルを作成する権限がありません。"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
             return
         except Exception as e:
             logger.error(f"チケットチャンネル作成エラー: {e}")
-            embed = EmbedBuilder().error(
+            view = CommonErrorView(
                 title="エラー",
                 description="チケットの作成中にエラーが発生しました。"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
             return
 
         # データベースにチケットを保存
@@ -174,23 +203,16 @@ class TicketPanelView(ui.LayoutView):
             data={"ticket_id": ticket_id}
         )
 
-        # ウェルカムメッセージ（Embed）
-        embed = EmbedBuilder().create(
-            title=f"🎫 チケット #{ticket_number:03d}",
-            description=f"{user.mention} さん、チケットを作成していただきありがとうございます。\n\n"
-                       f"お問い合わせ内容をこちらにご記入ください。\n"
-                       f"スタッフが対応いたします。"
-        )
-        embed.add_field(name="作成者", value=user.mention, inline=True)
-        embed.add_field(name="ステータス", value="🟢 オープン", inline=True)
-        await channel.send(content=user.mention, embed=embed)
+        # ウェルカムメッセージ
+        welcome_view = TicketWelcomeView(ticket_number=ticket_number, user=user)
+        await channel.send(content=user.mention, view=welcome_view)
 
         # 完了メッセージ
-        success_embed = EmbedBuilder().success(
+        success_view = CommonSuccessView(
             title="チケットを作成しました",
             description=f"{channel.mention}"
         )
-        await interaction.followup.send(embed=success_embed, ephemeral=True)
+        await interaction.followup.send(view=success_view, ephemeral=True)
 
         logger.info(f"チケット作成: #{ticket_number:03d} by {user} in {guild.name}")
 
@@ -282,11 +304,11 @@ class TicketControlView(ui.LayoutView):
         await self.db.update_ticket_status(interaction.channel.id, new_status)
 
         status_text = "🟡 保留中" if new_status == "on_hold" else "🟢 オープン"
-        embed = EmbedBuilder().info(
+        view = CommonInfoView(
             title="ステータス変更",
             description=f"チケットのステータスを **{status_text}** に変更しました。"
         )
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(view=view, ephemeral=True)
 
         # チャンネル名を更新
         try:
@@ -305,16 +327,11 @@ class TicketControlView(ui.LayoutView):
 
     async def close_ticket(self, interaction: discord.Interaction) -> None:
         """チケットをクローズ"""
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
 
         # 確認View
         confirm_view = ConfirmCloseView(interaction.channel.id)
-        embed = EmbedBuilder().warning(
-            title="チケットをクローズしますか？",
-            description="この操作はチケットチャンネルを削除します。\n"
-                       "本当にクローズしますか？"
-        )
-        await interaction.followup.send(embed=embed, view=confirm_view, ephemeral=True)
+        await interaction.followup.send(view=confirm_view, ephemeral=True)
 
     async def set_category(self, interaction: discord.Interaction) -> None:
         """カテゴリを設定"""
@@ -326,11 +343,11 @@ class TicketControlView(ui.LayoutView):
 
         await self.db.update_ticket_category(interaction.channel.id, selected)
 
-        embed = EmbedBuilder().success(
+        view = CommonSuccessView(
             title="カテゴリを設定しました",
             description=f"カテゴリ: **{selected}**"
         )
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(view=view, ephemeral=True)
 
         logger.info(f"チケットカテゴリ変更: {selected} - channel_id={interaction.channel.id}")
 
@@ -364,19 +381,19 @@ class AssignStaffModal(ui.Modal, title="担当者追加"):
             user_id = int(input_value)
             member = interaction.guild.get_member(user_id)
         except ValueError:
-            embed = EmbedBuilder().error(
+            view = CommonErrorView(
                 title="無効な入力",
                 description="有効なユーザーIDを入力してください。"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
             return
 
         if not member:
-            embed = EmbedBuilder().error(
+            view = CommonErrorView(
                 title="ユーザーが見つかりません",
                 description="指定されたユーザーはこのサーバーにいません。"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
             return
 
         # チャンネルの権限を追加
@@ -388,50 +405,88 @@ class AssignStaffModal(ui.Modal, title="担当者追加"):
                 read_message_history=True
             )
 
-            embed = EmbedBuilder().success(
+            view = CommonSuccessView(
                 title="担当者を追加しました",
                 description=f"{member.mention} をチケットに追加しました。"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
 
             # チャンネルに通知
-            notify_embed = EmbedBuilder().info(
+            notify_view = CommonInfoView(
                 title="担当者追加",
                 description=f"{member.mention} がチケットに追加されました。"
             )
-            await self.channel.send(embed=notify_embed)
+            await self.channel.send(view=notify_view)
 
             logger.info(f"担当者追加: {member} to channel_id={self.channel.id}")
 
         except discord.Forbidden:
-            embed = EmbedBuilder().error(
+            view = CommonErrorView(
                 title="権限エラー",
                 description="ユーザーを追加する権限がありません。"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
 
 
-class ConfirmCloseView(ui.View):
-    """チケットクローズ確認View"""
+class ConfirmCloseView(ui.LayoutView):
+    """チケットクローズ確認View (Components V2)"""
 
     def __init__(self, channel_id: int) -> None:
         super().__init__(timeout=60)
         self.channel_id = channel_id
         self.db = Database()
 
-    @ui.button(label="✅ はい、クローズします", style=discord.ButtonStyle.danger)
-    async def confirm(self, interaction: discord.Interaction, button: ui.Button) -> None:
+        container = ui.Container(accent_colour=discord.Colour.orange())
+
+        container.add_item(ui.TextDisplay("# ⚠️ チケットをクローズしますか？"))
+        container.add_item(ui.Separator())
+        container.add_item(ui.TextDisplay(
+            "この操作はチケットチャンネルを削除します。\n"
+            "本当にクローズしますか？"
+        ))
+        container.add_item(ui.Separator())
+
+        button_row = ui.ActionRow()
+        button_row.add_item(ui.Button(
+            label="✅ はい、クローズします",
+            style=discord.ButtonStyle.danger,
+            custom_id="ticket:close:confirm"
+        ))
+        button_row.add_item(ui.Button(
+            label="❌ キャンセル",
+            style=discord.ButtonStyle.secondary,
+            custom_id="ticket:close:cancel"
+        ))
+        container.add_item(button_row)
+
+        self.add_item(container)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """インタラクションのチェックとルーティング"""
+        custom_id = interaction.data.get("custom_id", "")
+
+        if custom_id == "ticket:close:confirm":
+            await self._confirm_close(interaction)
+            return False
+        elif custom_id == "ticket:close:cancel":
+            await interaction.response.defer()
+            await interaction.delete_original_response()
+            return False
+
+        return True
+
+    async def _confirm_close(self, interaction: discord.Interaction) -> None:
         """クローズ確認"""
         await interaction.response.defer()
 
         # ステータスを更新
         await self.db.update_ticket_status(self.channel_id, "closed")
 
-        embed = EmbedBuilder().info(
+        view = CommonInfoView(
             title="チケットをクローズしています...",
             description="5秒後にこのチャンネルは削除されます。"
         )
-        await interaction.followup.send(embed=embed)
+        await interaction.followup.send(view=view)
 
         # 5秒待ってからチャンネル削除
         import asyncio
@@ -444,9 +499,3 @@ class ConfirmCloseView(ui.View):
                 logger.info(f"チケットチャンネル削除: {channel.name}")
             except discord.Forbidden:
                 logger.error(f"チャンネル削除権限なし: {channel.name}")
-
-    @ui.button(label="❌ キャンセル", style=discord.ButtonStyle.secondary)
-    async def cancel(self, interaction: discord.Interaction, button: ui.Button) -> None:
-        """キャンセル"""
-        await interaction.response.defer()
-        await interaction.delete_original_response()
