@@ -5,13 +5,15 @@ Discord.py 2.6.4を使用した多機能Discord BOT
 from __future__ import annotations
 
 import asyncio
+
 import discord
-import psutil
-from discord.ext import commands, tasks
+from discord.ext import commands
 
 from utils.config import Config
 from utils.database import Database
 from utils.logging import setup_logging, get_logger
+from utils.status import StatusManager
+from utils.cog_loader import load_cogs
 
 
 class SumireBot(commands.Bot):
@@ -26,14 +28,14 @@ class SumireBot(commands.Bot):
         intents.guilds = True
 
         super().__init__(
-            command_prefix="!",  # スラッシュコマンド専用だが、prefixは必須
+            command_prefix="!",
             intents=intents,
             description=self.config.description
         )
 
         self.db = Database()
         self.logger = get_logger("sumire")
-        self._process = psutil.Process()
+        self.status_manager = StatusManager(self)
 
     async def setup_hook(self) -> None:
         """Bot起動時の初期化処理"""
@@ -42,22 +44,7 @@ class SumireBot(commands.Bot):
         self.logger.info("データベースに接続しました")
 
         # Cogsの読み込み
-        cogs = [
-            "cogs.general",
-            "cogs.utility",
-            "cogs.ticket",
-            "cogs.moderation",
-            "cogs.music",
-            "cogs.leveling",
-            "cogs.admin",
-        ]
-
-        for cog in cogs:
-            try:
-                await self.load_extension(cog)
-                self.logger.info(f"Cogを読み込みました: {cog}")
-            except Exception as e:
-                self.logger.error(f"Cogの読み込みに失敗: {cog} - {e}")
+        await load_cogs(self)
 
         # 永続的Viewの登録
         from views import PersistentViewManager
@@ -65,6 +52,7 @@ class SumireBot(commands.Bot):
         self.logger.info("永続的Viewを登録しました")
 
         # スラッシュコマンドの同期
+        self.logger.info("スラッシュコマンドを同期中...")
         await self.tree.sync()
         self.logger.info("スラッシュコマンドを同期しました")
 
@@ -74,8 +62,7 @@ class SumireBot(commands.Bot):
         self.logger.info(f"接続サーバー数: {len(self.guilds)}")
 
         # ステータス更新タスクを開始
-        if not self.update_status.is_running():
-            self.update_status.start()
+        self.status_manager.start()
 
     async def on_guild_join(self, guild: discord.Guild) -> None:
         """サーバー参加時"""
@@ -86,47 +73,10 @@ class SumireBot(commands.Bot):
         """サーバー退出時"""
         self.logger.info(f"サーバーから退出: {guild.name} (ID: {guild.id})")
 
-    @tasks.loop(seconds=5)
-    async def update_status(self) -> None:
-        """ステータスを定期更新（CPU・メモリ使用量表示）"""
-        try:
-            # CPU使用率を別スレッドで測定（システム全体とBotプロセス両方）
-            def get_cpu():
-                # システム全体のCPU使用率
-                system_cpu = psutil.cpu_percent(interval=1.0)
-                # Botプロセスの使用率
-                proc = psutil.Process()
-                bot_cpu = proc.cpu_percent(interval=0.1)
-                return system_cpu, bot_cpu
-
-            system_cpu, bot_cpu = await asyncio.to_thread(get_cpu)
-
-            # メモリ使用量（Bot プロセスのみ、MB単位）
-            memory_mb = self._process.memory_info().rss / 1024 / 1024
-
-            # ステータス文字列（システム/Bot の形式）
-            status_text = f"CPU {system_cpu:.0f}%/{bot_cpu:.1f}% | RAM {memory_mb:.0f}MB | {len(self.guilds)}サーバー"
-
-            activity = discord.Activity(
-                type=discord.ActivityType.watching,
-                name=status_text
-            )
-            await self.change_presence(activity=activity)
-            self.logger.debug(f"ステータス更新: {status_text}")
-
-        except Exception as e:
-            self.logger.error(f"ステータス更新エラー: {e}", exc_info=True)
-
-    @update_status.before_loop
-    async def before_update_status(self) -> None:
-        """ステータス更新タスク開始前にBotの準備を待つ"""
-        await self.wait_until_ready()
-
     async def close(self) -> None:
         """Bot終了時のクリーンアップ"""
         self.logger.info("Botを終了します...")
-        if self.update_status.is_running():
-            self.update_status.cancel()
+        self.status_manager.stop()
         await self.db.close()
         await super().close()
 

@@ -9,6 +9,7 @@ import discord
 from discord import app_commands
 
 from utils.logging import get_logger
+from utils.cog_loader import get_cog_list, get_cog_names, reload_cog, reload_all_cogs
 from views.common_views import (
     CommonErrorView,
     CommonSuccessView,
@@ -94,22 +95,11 @@ class OwnerMixin:
 
         result_lines = []
 
-        # リロード対象のCogリスト
-        cog_list = [
-            "cogs.general",
-            "cogs.utility",
-            "cogs.ticket",
-            "cogs.moderation",
-            "cogs.music",
-            "cogs.leveling",
-            "cogs.admin",
-        ]
-
         # Cogリロード
         if reload:
             if cog:
                 cog_name = cog if cog.startswith("cogs.") else f"cogs.{cog}"
-                if cog_name not in cog_list:
+                if cog_name not in get_cog_list():
                     view = CommonErrorView(
                         title="エラー",
                         description=f"Cog `{cog}` は存在しません。"
@@ -117,30 +107,18 @@ class OwnerMixin:
                     await interaction.followup.send(view=view, ephemeral=True)
                     return
 
-                try:
-                    await self.bot.reload_extension(cog_name)
+                success = await reload_cog(self.bot, cog_name)
+                if success:
                     result_lines.append(f"✅ `{cog_name}` をリロード")
-                    logger.info(f"Cogリロード: {cog_name} by {interaction.user}")
-                except Exception as e:
-                    result_lines.append(f"❌ `{cog_name}` リロード失敗: {e}")
-                    logger.error(f"Cogリロードエラー: {cog_name} - {e}")
+                else:
+                    result_lines.append(f"❌ `{cog_name}` リロード失敗")
             else:
-                success_count = 0
-                fail_count = 0
-
-                for cog_name in cog_list:
-                    try:
-                        await self.bot.reload_extension(cog_name)
-                        success_count += 1
-                    except Exception as e:
-                        fail_count += 1
-                        logger.error(f"Cogリロードエラー: {cog_name} - {e}")
+                success_count, fail_count = await reload_all_cogs(self.bot)
 
                 if fail_count > 0:
                     result_lines.append(f"⚠️ Cogリロード: {success_count}成功 / {fail_count}失敗")
                 else:
                     result_lines.append(f"✅ 全{success_count}個のCogをリロード")
-                logger.info(f"全Cogリロード: 成功={success_count}, 失敗={fail_count} by {interaction.user}")
 
         # コマンド同期
         try:
@@ -180,10 +158,7 @@ class OwnerMixin:
         current: str
     ) -> list[app_commands.Choice[str]]:
         """syncコマンドのCogオートコンプリート"""
-        cogs = [
-            "general", "utility", "ticket", "moderation",
-            "music", "leveling", "admin"
-        ]
+        cogs = get_cog_names()
         return [
             app_commands.Choice(name=cog, value=cog)
             for cog in cogs if current.lower() in cog.lower()

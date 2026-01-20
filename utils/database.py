@@ -137,22 +137,22 @@ class Database:
 
     async def _migrate_user_levels_reactions(self) -> None:
         """user_levelsテーブルにリアクションカラムを追加（既存DB用マイグレーション）"""
+        # ALTER TABLEはカラムが既に存在するとエラーになるので、各カラムを個別にtry-except
         try:
-            # カラムが存在するかチェック
-            async with self._db.execute("PRAGMA table_info(user_levels)") as cursor:
-                columns = [row[1] for row in await cursor.fetchall()]
-
-            if "reactions_given" not in columns:
-                await self._db.execute(
-                    "ALTER TABLE user_levels ADD COLUMN reactions_given INTEGER DEFAULT 0"
-                )
-            if "reactions_received" not in columns:
-                await self._db.execute(
-                    "ALTER TABLE user_levels ADD COLUMN reactions_received INTEGER DEFAULT 0"
-                )
+            await self._db.execute(
+                "ALTER TABLE user_levels ADD COLUMN reactions_given INTEGER DEFAULT 0"
+            )
             await self._db.commit()
         except Exception:
-            pass  # カラムが既に存在する場合は無視
+            pass
+
+        try:
+            await self._db.execute(
+                "ALTER TABLE user_levels ADD COLUMN reactions_received INTEGER DEFAULT 0"
+            )
+            await self._db.commit()
+        except Exception:
+            pass
 
     # ==================== サーバー設定 ====================
 
