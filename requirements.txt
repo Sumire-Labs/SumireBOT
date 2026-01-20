@@ -2,19 +2,19 @@
 discord.py==2.6.4
 
 # Configuration
-pyyaml>=6.0
+pyyaml>=6.0.3
 
 # Database
-aiosqlite>=0.19.0
+aiosqlite>=0.22.1
 
 # Translation
 googletrans-py>=4.0.0
 
 # Music Player
-wavelink>=3.4.0
+wavelink>=3.4.1
 
 # Type hints (development)
-typing-extensions>=4.0.0
+typing-extensions>=4.15.0
 
 # System monitoring
-psutil>=5.9.0
+psutil>=7.2.1
