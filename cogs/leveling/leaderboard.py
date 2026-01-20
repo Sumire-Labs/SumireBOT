@@ -6,6 +6,8 @@ from __future__ import annotations
 import discord
 from discord import app_commands, ui
 
+from views.common_views import CommonInfoView
+
 
 class LeaderboardView(ui.LayoutView):
     """ランキング表示用View"""
@@ -67,11 +69,11 @@ class LeaderboardMixin:
         vc_leaderboard = await self.db.get_vc_leaderboard(guild_id, limit=10)
 
         if not text_leaderboard and not vc_leaderboard:
-            embed = self.embed_builder.info(
+            view = CommonInfoView(
                 title="ランキング",
                 description="まだランキングデータがありません。\nメッセージを送信またはVCに参加しましょう！"
             )
-            await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(view=view)
             return
 
         view = LeaderboardView(

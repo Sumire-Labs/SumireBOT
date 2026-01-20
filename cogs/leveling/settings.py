@@ -10,6 +10,7 @@ from utils.config import Config
 from utils.database import Database
 from utils.checks import Checks
 from utils.logging import get_logger
+from views.common_views import CommonErrorView
 
 logger = get_logger("sumire.cogs.leveling.settings")
 
@@ -164,11 +165,11 @@ class SettingsMixin:
     async def leveling_settings(self, interaction: discord.Interaction) -> None:
         """レベルシステム設定コマンド"""
         if not interaction.guild:
-            embed = self.embed_builder.error(
+            view = CommonErrorView(
                 title="エラー",
                 description="このコマンドはサーバー内でのみ使用できます。"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
             return
 
         settings = await self.db.get_leveling_settings(interaction.guild.id)

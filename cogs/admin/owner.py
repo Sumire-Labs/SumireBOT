@@ -9,6 +9,12 @@ import discord
 from discord import app_commands
 
 from utils.logging import get_logger
+from views.common_views import (
+    CommonErrorView,
+    CommonSuccessView,
+    CommonWarningView,
+    CommonInfoView
+)
 
 logger = get_logger("sumire.cogs.admin.owner")
 
@@ -27,18 +33,18 @@ class OwnerMixin:
     async def shutdown(self, interaction: discord.Interaction) -> None:
         """Botをシャットダウン"""
         if not self._is_owner(interaction.user.id):
-            embed = self.embed_builder.error(
+            view = CommonErrorView(
                 title="権限エラー",
                 description="このコマンドはBotオーナーのみ使用できます。"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
             return
 
-        embed = self.embed_builder.info(
+        view = CommonInfoView(
             title="シャットダウン",
             description="Botをシャットダウンしています..."
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(view=view)
 
         logger.info(f"シャットダウン実行: {interaction.user}")
         await self.bot.close()
@@ -47,18 +53,18 @@ class OwnerMixin:
     async def restart(self, interaction: discord.Interaction) -> None:
         """Botを再起動"""
         if not self._is_owner(interaction.user.id):
-            embed = self.embed_builder.error(
+            view = CommonErrorView(
                 title="権限エラー",
                 description="このコマンドはBotオーナーのみ使用できます。"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
             return
 
-        embed = self.embed_builder.info(
+        view = CommonInfoView(
             title="再起動",
             description="Botを再起動しています...\n-# 起動スクリプトを使用している場合のみ自動再起動されます"
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(view=view)
 
         logger.info(f"再起動実行: {interaction.user}")
         await self.bot.close()
@@ -77,18 +83,18 @@ class OwnerMixin:
     ) -> None:
         """Cogリロード + コマンド同期"""
         if not self._is_owner(interaction.user.id):
-            embed = self.embed_builder.error(
+            view = CommonErrorView(
                 title="権限エラー",
                 description="このコマンドはBotオーナーのみ使用できます。"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
 
         result_lines = []
 
-        # リロード対象のCogリスト（新構成）
+        # リロード対象のCogリスト
         cog_list = [
             "cogs.general",
             "cogs.utility",
@@ -104,11 +110,11 @@ class OwnerMixin:
             if cog:
                 cog_name = cog if cog.startswith("cogs.") else f"cogs.{cog}"
                 if cog_name not in cog_list:
-                    embed = self.embed_builder.error(
+                    view = CommonErrorView(
                         title="エラー",
                         description=f"Cog `{cog}` は存在しません。"
                     )
-                    await interaction.followup.send(embed=embed, ephemeral=True)
+                    await interaction.followup.send(view=view, ephemeral=True)
                     return
 
                 try:
@@ -150,22 +156,22 @@ class OwnerMixin:
         has_warning = any("⚠️" in line for line in result_lines)
 
         if has_error:
-            embed = self.embed_builder.error(
+            view = CommonErrorView(
                 title="同期完了（エラーあり）",
                 description="\n".join(result_lines)
             )
         elif has_warning:
-            embed = self.embed_builder.warning(
+            view = CommonWarningView(
                 title="同期完了（警告あり）",
                 description="\n".join(result_lines)
             )
         else:
-            embed = self.embed_builder.success(
+            view = CommonSuccessView(
                 title="同期完了",
                 description="\n".join(result_lines)
             )
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(view=view, ephemeral=True)
 
     @sync.autocomplete("cog")
     async def sync_autocomplete(

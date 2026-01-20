@@ -6,11 +6,12 @@ from __future__ import annotations
 from typing import Optional, Union
 
 import discord
-from discord import app_commands
+from discord import app_commands, ui
 from discord.ext import commands
 
 from utils.checks import Checks
 from utils.logging import get_logger
+from views.common_views import CommonSuccessView, CommonWarningView, CommonErrorView
 from views.log_views import (
     LogMessageDeleteView,
     LogMessageEditView,
@@ -91,34 +92,42 @@ class LoggerMixin:
         if current_settings and current_settings.get("enabled"):
             if current_settings.get("channel_id") == channel_id:
                 await self.db.disable_logger(guild_id)
-                embed = self.embed_builder.warning(
+                view = CommonWarningView(
                     title="ログシステムを無効化しました",
                     description="サーバーログの記録を停止しました。"
                 )
             else:
                 await self.db.set_logger_channel(guild_id, channel_id)
-                embed = self.embed_builder.success(
+                view = CommonSuccessView(
                     title="ログチャンネルを変更しました",
                     description=f"ログ出力先を {interaction.channel.mention} に変更しました。"
                 )
         else:
             await self.db.set_logger_channel(guild_id, channel_id)
-            embed = self.embed_builder.success(
-                title="ログシステムを有効化しました",
-                description=f"サーバーログを {interaction.channel.mention} に出力します。"
-            )
+            view = self._create_logger_enabled_view(interaction.channel.mention)
 
-            embed.add_field(
-                name="📋 記録されるイベント",
-                value="• 📝 メッセージ（作成/編集/削除）\n"
-                      "• 📢 チャンネル（作成/変更/削除）\n"
-                      "• 🎭 ロール（作成/変更/削除）\n"
-                      "• 👤 メンバー（参加/退出/Ban/Unban）",
-                inline=False
-            )
-
-        await interaction.followup.send(embed=embed)
+        await interaction.followup.send(view=view)
         logger.info(f"ログ設定変更: guild_id={guild_id}, channel_id={channel_id}")
+
+    def _create_logger_enabled_view(self, channel_mention: str) -> ui.LayoutView:
+        """ログシステム有効化時のView"""
+        view = ui.LayoutView(timeout=300)
+        container = ui.Container(accent_colour=discord.Colour.green())
+
+        container.add_item(ui.TextDisplay("# ✅ ログシステムを有効化しました"))
+        container.add_item(ui.Separator())
+        container.add_item(ui.TextDisplay(f"サーバーログを {channel_mention} に出力します。"))
+        container.add_item(ui.Separator())
+        container.add_item(ui.TextDisplay(
+            "**📋 記録されるイベント**\n"
+            "• 📝 メッセージ（作成/編集/削除）\n"
+            "• 📢 チャンネル（作成/変更/削除）\n"
+            "• 🎭 ロール（作成/変更/削除）\n"
+            "• 👤 メンバー（参加/退出/Ban/Unban）"
+        ))
+
+        view.add_item(container)
+        return view
 
     # ==================== メッセージイベント ====================
 

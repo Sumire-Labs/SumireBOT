@@ -4,14 +4,41 @@
 from __future__ import annotations
 
 import discord
-from discord import app_commands
+from discord import app_commands, ui
 
 from utils.checks import Checks
 from utils.logging import get_logger
 from views.ticket_views import TicketPanelView
 from views.persistent import PersistentViewManager
+from views.common_views import CommonErrorView, CommonWarningView
 
 logger = get_logger("sumire.cogs.ticket")
+
+
+class TicketSetupSuccessView(ui.LayoutView):
+    """チケットセットアップ成功View"""
+
+    def __init__(self, panel_url: str, category_mention: str) -> None:
+        super().__init__(timeout=300)
+
+        container = ui.Container(accent_colour=discord.Colour.green())
+
+        container.add_item(ui.TextDisplay("# ✅ チケットシステムを設定しました"))
+        container.add_item(ui.Separator())
+        container.add_item(ui.TextDisplay("チケットパネルを設置しました。"))
+        container.add_item(ui.Separator())
+        container.add_item(ui.TextDisplay(
+            f"**パネル:** [パネルへジャンプ]({panel_url})\n"
+            f"**カテゴリ:** {category_mention}"
+        ))
+        container.add_item(ui.Separator())
+        container.add_item(ui.TextDisplay(
+            "**📋 使い方**\n"
+            "ユーザーがパネルのボタンをクリックすると、\n"
+            "自動的にチケットチャンネルが作成されます。"
+        ))
+
+        self.add_item(container)
 
 
 class TicketMixin:
@@ -35,13 +62,13 @@ class TicketMixin:
                 if old_channel:
                     old_message = await old_channel.fetch_message(existing["panel_message_id"])
                     if old_message:
-                        embed = self.embed_builder.warning(
+                        view = CommonWarningView(
                             title="既存のパネルがあります",
                             description=f"既にチケットパネルが設置されています。\n"
                                        f"{old_channel.mention}\n\n"
                                        f"新しいパネルを設置するには、先に既存のパネルを削除してください。"
                         )
-                        await interaction.followup.send(embed=embed)
+                        await interaction.followup.send(view=view)
                         return
             except discord.NotFound:
                 pass
@@ -68,11 +95,11 @@ class TicketMixin:
                 )
                 logger.info(f"チケットカテゴリ作成: {category.name} in {guild.name}")
             except discord.Forbidden:
-                embed = self.embed_builder.error(
+                view = CommonErrorView(
                     title="権限エラー",
                     description="カテゴリを作成する権限がありません。"
                 )
-                await interaction.followup.send(embed=embed)
+                await interaction.followup.send(view=view)
                 return
 
         # チケットパネルを送信
@@ -81,11 +108,11 @@ class TicketMixin:
         try:
             panel_message = await channel.send(view=panel_view)
         except discord.Forbidden:
-            embed = self.embed_builder.error(
+            view = CommonErrorView(
                 title="権限エラー",
                 description="メッセージを送信する権限がありません。"
             )
-            await interaction.followup.send(embed=embed)
+            await interaction.followup.send(view=view)
             return
 
         # 設定を保存
@@ -105,26 +132,9 @@ class TicketMixin:
         )
 
         # 完了メッセージ
-        embed = self.embed_builder.success(
-            title="チケットシステムを設定しました",
-            description="チケットパネルを設置しました。"
+        view = TicketSetupSuccessView(
+            panel_url=panel_message.jump_url,
+            category_mention=category.mention
         )
-        embed.add_field(
-            name="パネル",
-            value=f"[パネルへジャンプ]({panel_message.jump_url})",
-            inline=True
-        )
-        embed.add_field(
-            name="カテゴリ",
-            value=category.mention,
-            inline=True
-        )
-        embed.add_field(
-            name="📋 使い方",
-            value="ユーザーがパネルのボタンをクリックすると、\n"
-                  "自動的にチケットチャンネルが作成されます。",
-            inline=False
-        )
-
-        await interaction.followup.send(embed=embed)
+        await interaction.followup.send(view=view)
         logger.info(f"チケットシステムセットアップ完了: guild={guild.name}")

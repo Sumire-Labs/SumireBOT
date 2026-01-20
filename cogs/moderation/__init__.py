@@ -11,7 +11,6 @@ from discord.ext import commands
 
 from utils.config import Config
 from utils.database import Database
-from utils.embeds import EmbedBuilder
 from utils.logging import get_logger
 from utils.checks import handle_app_command_error
 from views.moderation_views import LogModerationActionView, ModerationDMView
@@ -33,7 +32,6 @@ class Moderation(BanMixin, KickMixin, TimeoutMixin, commands.Cog):
         self.bot = bot
         self.config = Config()
         self.db = Database()
-        self.embed_builder = EmbedBuilder()
 
     # ==================== ヘルパーメソッド ====================
 

@@ -10,7 +10,6 @@ from discord.ext import commands
 
 from utils.config import Config
 from utils.database import Database
-from utils.embeds import EmbedBuilder
 from utils.checks import handle_app_command_error
 
 from .translate import TranslateMixin
@@ -27,7 +26,6 @@ class Utility(TranslateMixin, LoggerMixin, commands.Cog):
         self.bot = bot
         self.config = Config()
         self.db = Database()
-        self.embed_builder = EmbedBuilder()
 
         # 翻訳機能の初期化
         self._init_translator()

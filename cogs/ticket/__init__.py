@@ -10,7 +10,6 @@ from discord.ext import commands
 
 from utils.config import Config
 from utils.database import Database
-from utils.embeds import EmbedBuilder
 from utils.checks import handle_app_command_error
 
 from .ticket import TicketMixin
@@ -26,7 +25,6 @@ class Ticket(TicketMixin, commands.Cog):
         self.bot = bot
         self.config = Config()
         self.db = Database()
-        self.embed_builder = EmbedBuilder()
 
     # ==================== エラーハンドリング ====================
 

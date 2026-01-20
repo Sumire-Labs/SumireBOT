@@ -8,6 +8,8 @@ from typing import Optional
 import discord
 from discord import app_commands, ui
 
+from views.common_views import CommonInfoView
+
 
 class RankView(ui.LayoutView):
     """ランク表示用View"""
@@ -92,11 +94,11 @@ class RankMixin:
         user_data = await self.db.get_user_level(guild_id, target.id)
 
         if not user_data:
-            embed = self.embed_builder.info(
+            view = CommonInfoView(
                 title="レベル情報",
                 description=f"{target.mention} はまだレベルデータがありません。\nメッセージを送信またはVCに参加しましょう！"
             )
-            await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(view=view)
             return
 
         text_rank = await self.db.get_user_rank(guild_id, target.id)

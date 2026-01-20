@@ -13,10 +13,10 @@ from discord.ext import commands
 
 from utils.config import Config
 from utils.database import Database
-from utils.embeds import EmbedBuilder
 from utils.logging import get_logger
 from utils.checks import handle_app_command_error
 from views.music_views import MusicInfoView
+from views.common_views import CommonErrorView
 
 from .play import PlayMixin
 from .skip import SkipMixin
@@ -37,7 +37,6 @@ class Music(PlayMixin, SkipMixin, LeaveMixin, LoopMixin, EventsMixin, commands.C
         self.bot = bot
         self.config = Config()
         self.db = Database()
-        self.embed_builder = EmbedBuilder()
         self.loop_mode: dict[int, str] = {}
         self._auto_leave_tasks: dict[int, asyncio.Task] = {}
 
@@ -140,19 +139,19 @@ class Music(PlayMixin, SkipMixin, LeaveMixin, LoopMixin, EventsMixin, commands.C
     async def _ensure_voice(self, interaction: discord.Interaction) -> Optional[wavelink.Player]:
         """ボイスチャンネルに接続を確保"""
         if not interaction.guild:
-            embed = self.embed_builder.error(
+            view = CommonErrorView(
                 title="エラー",
                 description="このコマンドはサーバー内でのみ使用できます。"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
             return None
 
         if not interaction.user.voice or not interaction.user.voice.channel:
-            embed = self.embed_builder.error(
+            view = CommonErrorView(
                 title="エラー",
                 description="先にボイスチャンネルに参加してください。"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
             return None
 
         player = cast(wavelink.Player, interaction.guild.voice_client)
@@ -164,19 +163,19 @@ class Music(PlayMixin, SkipMixin, LeaveMixin, LoopMixin, EventsMixin, commands.C
                 await player.set_volume(self.config.music_default_volume)
                 logger.info(f"ボイスチャンネルに接続: {interaction.user.voice.channel.name}")
             except discord.ClientException as e:
-                embed = self.embed_builder.error(
+                view = CommonErrorView(
                     title="接続エラー",
                     description=f"ボイスチャンネルに接続できませんでした。\n{e}"
                 )
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+                await interaction.response.send_message(view=view, ephemeral=True)
                 return None
         else:
             if player.channel != interaction.user.voice.channel:
-                embed = self.embed_builder.error(
+                view = CommonErrorView(
                     title="エラー",
                     description="Botと同じボイスチャンネルに参加してください。"
                 )
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+                await interaction.response.send_message(view=view, ephemeral=True)
                 return None
 
         return player

@@ -1,6 +1,12 @@
 # views package
 from .ticket_views import TicketPanelView, TicketControlView
 from .persistent import PersistentViewManager
+from .common_views import (
+    CommonErrorView,
+    CommonSuccessView,
+    CommonWarningView,
+    CommonInfoView
+)
 from .music_views import (
     NowPlayingView,
     TrackRequestView,

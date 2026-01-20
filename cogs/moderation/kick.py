@@ -11,6 +11,7 @@ from discord import app_commands
 from utils.checks import Checks
 from utils.logging import get_logger
 from views.moderation_views import ModerationSuccessView
+from views.common_views import CommonErrorView
 
 logger = get_logger("sumire.cogs.moderation")
 
@@ -33,11 +34,11 @@ class KickMixin:
     ) -> None:
         """メンバーをキックするコマンド"""
         if not interaction.guild:
-            embed = self.embed_builder.error(
+            view = CommonErrorView(
                 title="エラー",
                 description="このコマンドはサーバー内でのみ使用できます。"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
             return
 
         reason = reason or "理由なし"
@@ -45,8 +46,8 @@ class KickMixin:
         # ロール階層チェック
         can_moderate, error_msg = self._can_moderate(interaction.user, member, interaction.guild)
         if not can_moderate:
-            embed = self.embed_builder.error(title="エラー", description=error_msg)
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            view = CommonErrorView(title="エラー", description=error_msg)
+            await interaction.response.send_message(view=view, ephemeral=True)
             return
 
         await interaction.response.defer()
@@ -64,18 +65,18 @@ class KickMixin:
             await member.kick(reason=f"{reason} (by {interaction.user})")
             logger.info(f"KICK: {member} kicked by {interaction.user} in {interaction.guild.name}")
         except discord.Forbidden:
-            embed = self.embed_builder.error(
+            view = CommonErrorView(
                 title="エラー",
                 description="権限不足でキックできません。Botのロール位置を確認してください。"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
             return
         except discord.HTTPException as e:
-            embed = self.embed_builder.error(
+            view = CommonErrorView(
                 title="エラー",
                 description=f"キック処理中にエラーが発生しました: {e}"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
             return
 
         # ログ送信

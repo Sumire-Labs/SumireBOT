@@ -11,9 +11,13 @@ from discord.ext import commands
 
 from utils.config import Config
 from utils.database import Database
-from utils.embeds import EmbedBuilder
 from utils.logging import get_logger
 from utils.checks import Checks
+from views.common_views import (
+    CommonErrorView,
+    CommonSuccessView,
+    CommonWarningView
+)
 
 logger = get_logger("sumire.cogs.admin.autorole")
 
@@ -133,40 +137,40 @@ class AutoRoleSettingsView(ui.LayoutView):
 
         values = interaction.data.get("values", [])
         if not values:
-            embed = EmbedBuilder().warning(
+            view = CommonWarningView(
                 title="ロール未選択",
                 description="ロールが選択されていません。"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
             return
 
         role_id = int(values[0])
         role = interaction.guild.get_role(role_id)
 
         if not role:
-            embed = EmbedBuilder().error(
+            view = CommonErrorView(
                 title="エラー",
                 description="ロールが見つかりません。"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
             return
 
         if role >= interaction.guild.me.top_role:
-            embed = EmbedBuilder().error(
+            view = CommonErrorView(
                 title="権限エラー",
                 description="Botより上位のロールは設定できません。"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
             return
 
         await self.db.set_autorole(interaction.guild.id, human_role_id=role_id)
 
-        embed = EmbedBuilder().success(
+        view = CommonSuccessView(
             title="人間用ロールを設定しました",
             description=f"ロール: {role.mention}\n\n"
                        f"新しく参加した人間メンバーにこのロールが自動付与されます。"
         )
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(view=view, ephemeral=True)
         logger.info(f"AutoRole 人間用ロール設定: {role.name} in {interaction.guild.name}")
 
     async def set_bot_role(self, interaction: discord.Interaction) -> None:
@@ -175,40 +179,40 @@ class AutoRoleSettingsView(ui.LayoutView):
 
         values = interaction.data.get("values", [])
         if not values:
-            embed = EmbedBuilder().warning(
+            view = CommonWarningView(
                 title="ロール未選択",
                 description="ロールが選択されていません。"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
             return
 
         role_id = int(values[0])
         role = interaction.guild.get_role(role_id)
 
         if not role:
-            embed = EmbedBuilder().error(
+            view = CommonErrorView(
                 title="エラー",
                 description="ロールが見つかりません。"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
             return
 
         if role >= interaction.guild.me.top_role:
-            embed = EmbedBuilder().error(
+            view = CommonErrorView(
                 title="権限エラー",
                 description="Botより上位のロールは設定できません。"
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
             return
 
         await self.db.set_autorole(interaction.guild.id, bot_role_id=role_id)
 
-        embed = EmbedBuilder().success(
+        view = CommonSuccessView(
             title="Bot用ロールを設定しました",
             description=f"ロール: {role.mention}\n\n"
                        f"新しく参加したBotにこのロールが自動付与されます。"
         )
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(view=view, ephemeral=True)
         logger.info(f"AutoRole Bot用ロール設定: {role.name} in {interaction.guild.name}")
 
     async def toggle_enabled(self, interaction: discord.Interaction) -> None:
@@ -222,11 +226,11 @@ class AutoRoleSettingsView(ui.LayoutView):
         await self.db.set_autorole(interaction.guild.id, enabled=new_enabled)
 
         status_text = "有効" if new_enabled else "無効"
-        embed = EmbedBuilder().success(
+        view = CommonSuccessView(
             title=f"自動ロールを{status_text}にしました",
             description=f"ステータス: {'🟢 有効' if new_enabled else '🔴 無効'}"
         )
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(view=view, ephemeral=True)
         logger.info(f"AutoRole {status_text}: {interaction.guild.name}")
 
     async def clear_role(self, interaction: discord.Interaction, role_type: str) -> None:
@@ -236,11 +240,11 @@ class AutoRoleSettingsView(ui.LayoutView):
         await self.db.clear_autorole(interaction.guild.id, role_type)
 
         type_text = "人間用" if role_type == "human" else "Bot用"
-        embed = EmbedBuilder().success(
+        view = CommonSuccessView(
             title=f"{type_text}ロールをクリアしました",
             description=f"{type_text}ロールの設定を解除しました。"
         )
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(view=view, ephemeral=True)
         logger.info(f"AutoRole {type_text}ロールクリア: {interaction.guild.name}")
 
 
@@ -289,11 +293,11 @@ class AutoRoleMixin:
     async def autorole(self, interaction: discord.Interaction) -> None:
         """自動ロール設定コマンド"""
         if not interaction.guild:
-            embed = self.embed_builder.error(
+            view = CommonErrorView(
                 title="エラー",
                 description="このコマンドはサーバー内でのみ使用できます。"
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
             return
 
         settings = await self.db.get_autorole_settings(interaction.guild.id)
