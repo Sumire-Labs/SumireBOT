@@ -58,9 +58,9 @@ class AvatarView(ui.LayoutView):
             container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
             container.add_item(ui.TextDisplay("**リンク:**\n" + "\n".join(link_lines)))
 
-        self.add_item(container)
+        container.add_item(ui.Separator())
 
-        # ダウンロードボタン
+        # ダウンロードボタン（Container内に配置）
         action_row = ui.ActionRow()
         action_row.add_item(ui.Button(
             label="アバターをダウンロード",
@@ -77,7 +77,9 @@ class AvatarView(ui.LayoutView):
                 emoji="🖼️"
             ))
 
-        self.add_item(action_row)
+        container.add_item(action_row)
+
+        self.add_item(container)
 
 
 class AvatarMixin:
