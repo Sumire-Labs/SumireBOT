@@ -125,10 +125,34 @@ class Database:
                 vc_time INTEGER DEFAULT 0,
                 vc_level INTEGER DEFAULT 0,
                 vc_join_time TIMESTAMP,
+                reactions_given INTEGER DEFAULT 0,
+                reactions_received INTEGER DEFAULT 0,
                 UNIQUE(guild_id, user_id)
             );
         """)
         await self._db.commit()
+
+        # 既存テーブルにカラムを追加（マイグレーション）
+        await self._migrate_user_levels_reactions()
+
+    async def _migrate_user_levels_reactions(self) -> None:
+        """user_levelsテーブルにリアクションカラムを追加（既存DB用マイグレーション）"""
+        try:
+            # カラムが存在するかチェック
+            async with self._db.execute("PRAGMA table_info(user_levels)") as cursor:
+                columns = [row[1] for row in await cursor.fetchall()]
+
+            if "reactions_given" not in columns:
+                await self._db.execute(
+                    "ALTER TABLE user_levels ADD COLUMN reactions_given INTEGER DEFAULT 0"
+                )
+            if "reactions_received" not in columns:
+                await self._db.execute(
+                    "ALTER TABLE user_levels ADD COLUMN reactions_received INTEGER DEFAULT 0"
+                )
+            await self._db.commit()
+        except Exception:
+            pass  # カラムが既に存在する場合は無視
 
     # ==================== サーバー設定 ====================
 
@@ -663,3 +687,25 @@ class Database:
             if row:
                 return row["rank"]
             return None
+
+    # ==================== リアクション統計 ====================
+
+    async def add_reaction_given(self, guild_id: int, user_id: int) -> None:
+        """リアクションをつけた数をインクリメント"""
+        await self._db.execute("""
+            INSERT INTO user_levels (guild_id, user_id, reactions_given)
+            VALUES (?, ?, 1)
+            ON CONFLICT(guild_id, user_id) DO UPDATE SET
+                reactions_given = reactions_given + 1
+        """, (guild_id, user_id))
+        await self._db.commit()
+
+    async def add_reaction_received(self, guild_id: int, user_id: int) -> None:
+        """リアクションをもらった数をインクリメント"""
+        await self._db.execute("""
+            INSERT INTO user_levels (guild_id, user_id, reactions_received)
+            VALUES (?, ?, 1)
+            ON CONFLICT(guild_id, user_id) DO UPDATE SET
+                reactions_received = reactions_received + 1
+        """, (guild_id, user_id))
+        await self._db.commit()

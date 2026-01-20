@@ -80,3 +80,53 @@ class EventsMixin:
 
         elif before.channel is not None and after.channel is not None and before.channel != after.channel:
             logger.debug(f"VC移動: {member} {before.channel.name} -> {after.channel.name}")
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
+        """リアクション追加時の統計トラッキング"""
+        # DMは除外
+        if not payload.guild_id:
+            return
+
+        # Botのリアクションは除外
+        if payload.member and payload.member.bot:
+            return
+
+        guild_id = payload.guild_id
+        reactor_id = payload.user_id
+
+        # レベリング機能が有効かチェック
+        settings = await self.db.get_leveling_settings(guild_id)
+        if settings and not settings.get("enabled", True):
+            return
+
+        # メッセージを取得して投稿者を特定
+        try:
+            channel = self.bot.get_channel(payload.channel_id)
+            if not channel:
+                return
+
+            message = await channel.fetch_message(payload.message_id)
+            if not message:
+                return
+
+            author_id = message.author.id
+
+            # 自分自身へのリアクションは除外
+            if reactor_id == author_id:
+                return
+
+            # リアクションをつけた人のカウントをインクリメント
+            await self.db.add_reaction_given(guild_id, reactor_id)
+
+            # リアクションをもらった人のカウントをインクリメント（Botでも可）
+            await self.db.add_reaction_received(guild_id, author_id)
+
+            logger.debug(f"リアクション: {payload.emoji} by {reactor_id} to {author_id}")
+
+        except discord.NotFound:
+            pass
+        except discord.Forbidden:
+            pass
+        except Exception as e:
+            logger.error(f"リアクショントラッキングエラー: {e}")

@@ -22,7 +22,9 @@ class RankView(ui.LayoutView):
         text_rank: int,
         vc_level: int,
         vc_time: int,
-        vc_rank: int
+        vc_rank: int,
+        reactions_given: int = 0,
+        reactions_received: int = 0
     ) -> None:
         super().__init__(timeout=300)
 
@@ -72,6 +74,14 @@ class RankView(ui.LayoutView):
         ))
 
         container.add_item(ui.Separator())
+
+        container.add_item(ui.TextDisplay(
+            f"### 😄 リアクション\n"
+            f"つけた数: **{reactions_given:,}** 回\n"
+            f"もらった数: **{reactions_received:,}** 回"
+        ))
+
+        container.add_item(ui.Separator())
         container.add_item(ui.TextDisplay(f"-# ユーザーID: {target.id}"))
 
         self.add_item(container)
@@ -111,7 +121,9 @@ class RankMixin:
             text_rank=text_rank,
             vc_level=user_data.get("vc_level", 0),
             vc_time=user_data.get("vc_time", 0),
-            vc_rank=vc_rank
+            vc_rank=vc_rank,
+            reactions_given=user_data.get("reactions_given", 0),
+            reactions_received=user_data.get("reactions_received", 0)
         )
 
         await interaction.response.send_message(view=view)
