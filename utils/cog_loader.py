@@ -21,6 +21,8 @@ COGS = [
     "cogs.music",
     "cogs.leveling",
     "cogs.admin",
+    "cogs.giveaway",
+    "cogs.poll",
 ]
 
 

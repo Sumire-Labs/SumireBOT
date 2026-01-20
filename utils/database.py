@@ -129,6 +129,38 @@ class Database:
                 reactions_received INTEGER DEFAULT 0,
                 UNIQUE(guild_id, user_id)
             );
+
+            -- Giveaway
+            CREATE TABLE IF NOT EXISTS giveaways (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id INTEGER NOT NULL,
+                channel_id INTEGER NOT NULL,
+                message_id INTEGER UNIQUE NOT NULL,
+                host_id INTEGER NOT NULL,
+                prize TEXT NOT NULL,
+                winner_count INTEGER DEFAULT 1,
+                end_time TIMESTAMP NOT NULL,
+                participants TEXT DEFAULT '[]',
+                winners TEXT DEFAULT '[]',
+                ended INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- 投票
+            CREATE TABLE IF NOT EXISTS polls (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id INTEGER NOT NULL,
+                channel_id INTEGER NOT NULL,
+                message_id INTEGER UNIQUE NOT NULL,
+                author_id INTEGER NOT NULL,
+                question TEXT NOT NULL,
+                options TEXT NOT NULL,
+                votes TEXT DEFAULT '{}',
+                multi_select INTEGER DEFAULT 0,
+                end_time TIMESTAMP,
+                ended INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
         """)
         await self._db.commit()
 
@@ -708,4 +740,189 @@ class Database:
             ON CONFLICT(guild_id, user_id) DO UPDATE SET
                 reactions_received = reactions_received + 1
         """, (guild_id, user_id))
+        await self._db.commit()
+
+    # ==================== Giveaway ====================
+
+    async def create_giveaway(
+        self,
+        guild_id: int,
+        channel_id: int,
+        message_id: int,
+        host_id: int,
+        prize: str,
+        winner_count: int,
+        end_time: datetime
+    ) -> int:
+        """Giveawayを作成"""
+        cursor = await self._db.execute("""
+            INSERT INTO giveaways (guild_id, channel_id, message_id, host_id, prize, winner_count, end_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (guild_id, channel_id, message_id, host_id, prize, winner_count, end_time.isoformat()))
+        await self._db.commit()
+        return cursor.lastrowid
+
+    async def get_giveaway(self, message_id: int) -> Optional[dict]:
+        """Giveawayを取得"""
+        async with self._db.execute(
+            "SELECT * FROM giveaways WHERE message_id = ?",
+            (message_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                result = dict(row)
+                result["participants"] = json.loads(result.get("participants", "[]"))
+                result["winners"] = json.loads(result.get("winners", "[]"))
+                return result
+            return None
+
+    async def get_active_giveaways(self) -> list[dict]:
+        """終了していないGiveawayを全て取得"""
+        async with self._db.execute(
+            "SELECT * FROM giveaways WHERE ended = 0"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                result = dict(row)
+                result["participants"] = json.loads(result.get("participants", "[]"))
+                result["winners"] = json.loads(result.get("winners", "[]"))
+                results.append(result)
+            return results
+
+    async def add_giveaway_participant(self, message_id: int, user_id: int) -> bool:
+        """Giveawayに参加者を追加（既に参加済みの場合はFalse）"""
+        giveaway = await self.get_giveaway(message_id)
+        if not giveaway:
+            return False
+
+        participants = giveaway["participants"]
+        if user_id in participants:
+            return False
+
+        participants.append(user_id)
+        await self._db.execute(
+            "UPDATE giveaways SET participants = ? WHERE message_id = ?",
+            (json.dumps(participants), message_id)
+        )
+        await self._db.commit()
+        return True
+
+    async def end_giveaway(self, message_id: int, winners: list[int]) -> None:
+        """Giveawayを終了"""
+        await self._db.execute(
+            "UPDATE giveaways SET ended = 1, winners = ? WHERE message_id = ?",
+            (json.dumps(winners), message_id)
+        )
+        await self._db.commit()
+
+    async def delete_giveaway(self, message_id: int) -> None:
+        """Giveawayを削除"""
+        await self._db.execute(
+            "DELETE FROM giveaways WHERE message_id = ?",
+            (message_id,)
+        )
+        await self._db.commit()
+
+    # ==================== 投票 ====================
+
+    async def create_poll(
+        self,
+        guild_id: int,
+        channel_id: int,
+        message_id: int,
+        author_id: int,
+        question: str,
+        options: list[str],
+        multi_select: bool = False,
+        end_time: Optional[datetime] = None
+    ) -> int:
+        """投票を作成"""
+        cursor = await self._db.execute("""
+            INSERT INTO polls (guild_id, channel_id, message_id, author_id, question, options, multi_select, end_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            guild_id, channel_id, message_id, author_id, question,
+            json.dumps(options), 1 if multi_select else 0,
+            end_time.isoformat() if end_time else None
+        ))
+        await self._db.commit()
+        return cursor.lastrowid
+
+    async def get_poll(self, message_id: int) -> Optional[dict]:
+        """投票を取得"""
+        async with self._db.execute(
+            "SELECT * FROM polls WHERE message_id = ?",
+            (message_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                result = dict(row)
+                result["options"] = json.loads(result.get("options", "[]"))
+                result["votes"] = json.loads(result.get("votes", "{}"))
+                return result
+            return None
+
+    async def get_active_polls(self) -> list[dict]:
+        """終了していない投票を全て取得"""
+        async with self._db.execute(
+            "SELECT * FROM polls WHERE ended = 0"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                result = dict(row)
+                result["options"] = json.loads(result.get("options", "[]"))
+                result["votes"] = json.loads(result.get("votes", "{}"))
+                results.append(result)
+            return results
+
+    async def vote_poll(self, message_id: int, user_id: int, option_index: int) -> bool:
+        """
+        投票する
+
+        Returns:
+            bool: 投票が変更されたかどうか
+        """
+        poll = await self.get_poll(message_id)
+        if not poll or poll["ended"]:
+            return False
+
+        votes = poll["votes"]
+        user_key = str(user_id)
+        multi_select = bool(poll["multi_select"])
+
+        if multi_select:
+            # 複数選択: トグル
+            if user_key not in votes:
+                votes[user_key] = []
+            if option_index in votes[user_key]:
+                votes[user_key].remove(option_index)
+            else:
+                votes[user_key].append(option_index)
+        else:
+            # 単一選択: 上書き
+            votes[user_key] = [option_index]
+
+        await self._db.execute(
+            "UPDATE polls SET votes = ? WHERE message_id = ?",
+            (json.dumps(votes), message_id)
+        )
+        await self._db.commit()
+        return True
+
+    async def end_poll(self, message_id: int) -> None:
+        """投票を終了"""
+        await self._db.execute(
+            "UPDATE polls SET ended = 1 WHERE message_id = ?",
+            (message_id,)
+        )
+        await self._db.commit()
+
+    async def delete_poll(self, message_id: int) -> None:
+        """投票を削除"""
+        await self._db.execute(
+            "DELETE FROM polls WHERE message_id = ?",
+            (message_id,)
+        )
         await self._db.commit()

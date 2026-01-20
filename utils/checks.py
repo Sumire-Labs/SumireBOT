@@ -53,6 +53,16 @@ class Checks:
         return app_commands.check(predicate)
 
     @staticmethod
+    def is_mod() -> Callable[[T], T]:
+        """モデレーター権限チェック（manage_guild）"""
+        async def predicate(interaction: discord.Interaction) -> bool:
+            if not interaction.guild:
+                return False
+            return interaction.user.guild_permissions.manage_guild
+
+        return app_commands.check(predicate)
+
+    @staticmethod
     def in_guild() -> Callable[[T], T]:
         """サーバー内でのみ実行可能"""
         async def predicate(interaction: discord.Interaction) -> bool:
@@ -70,6 +80,12 @@ class NotAdministrator(CheckFailure):
     """管理者権限がない場合"""
     def __init__(self):
         super().__init__("このコマンドは管理者権限が必要です。")
+
+
+class NotModerator(CheckFailure):
+    """モデレーター権限がない場合"""
+    def __init__(self):
+        super().__init__("このコマンドはモデレーター権限が必要です。")
 
 
 class NotInGuild(CheckFailure):
@@ -106,13 +122,15 @@ async def handle_app_command_error(
         # 権限チェック失敗
         if isinstance(error, NotAdministrator):
             description = "このコマンドを実行する権限がありません。\n管理者権限が必要です。"
+        elif isinstance(error, NotModerator):
+            description = "このコマンドを実行する権限がありません。\nモデレーター権限が必要です。"
         elif isinstance(error, NotInGuild):
             description = "このコマンドはサーバー内でのみ使用できます。"
         elif isinstance(error, MissingPermissions):
             perms_str = "、".join(error.permissions)
             description = f"このコマンドを実行する権限がありません。\n必要な権限: {perms_str}"
         else:
-            description = "このコマンドを実行する権限がありません。\n管理者権限が必要です。"
+            description = "このコマンドを実行する権限がありません。"
 
         view = CommonErrorView(
             title="権限エラー",

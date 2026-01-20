@@ -30,3 +30,12 @@ from .log_views import (
     LogChannelUpdateView,
     LogRoleUpdateView
 )
+from .giveaway_views import (
+    GiveawayView,
+    GiveawayEndedView,
+    GiveawayNoParticipantsView
+)
+from .poll_views import (
+    PollView,
+    PollEndedView
+)
