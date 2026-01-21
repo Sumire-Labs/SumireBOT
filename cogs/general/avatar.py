@@ -8,6 +8,9 @@ from discord import app_commands, ui
 from typing import Optional
 
 from utils.config import Config
+from utils.logging import get_logger
+
+logger = get_logger("sumire.cogs.general.avatar")
 
 
 class AvatarView(ui.LayoutView):
@@ -35,7 +38,7 @@ class AvatarView(ui.LayoutView):
 
         # アバター画像
         gallery = ui.MediaGallery()
-        gallery.add_item(ui.MediaGalleryItem(media=avatar_url))
+        gallery.add_item(discord.MediaGalleryItem(media=avatar_url))
         container.add_item(gallery)
 
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
@@ -96,10 +99,16 @@ class AvatarMixin:
         await interaction.response.defer()
 
         target = user or interaction.user
+        logger.debug(f"Avatar command: target={target}")
 
         try:
             fetched_user = await self.bot.fetch_user(target.id)
+            logger.debug(f"Fetched user: {fetched_user}, banner={fetched_user.banner}")
         except discord.NotFound:
+            fetched_user = target
+            logger.debug(f"User not found, using target: {target}")
+        except Exception as e:
+            logger.error(f"Error fetching user: {e}")
             fetched_user = target
 
         avatar_url = target.display_avatar.url
@@ -111,13 +120,21 @@ class AvatarMixin:
 
         banner_url = fetched_user.banner.url if fetched_user.banner else None
 
-        view = AvatarView(
-            target=target,
-            avatar_url=avatar_url,
-            global_avatar_url=global_avatar_url,
-            server_avatar_url=server_avatar_url,
-            banner_url=banner_url,
-            accent_color=fetched_user.accent_color
-        )
+        logger.debug(f"Creating AvatarView: avatar={avatar_url}, banner={banner_url}")
 
-        await interaction.followup.send(view=view)
+        try:
+            view = AvatarView(
+                target=target,
+                avatar_url=avatar_url,
+                global_avatar_url=global_avatar_url,
+                server_avatar_url=server_avatar_url,
+                banner_url=banner_url,
+                accent_color=fetched_user.accent_color
+            )
+            logger.debug("AvatarView created successfully")
+
+            await interaction.followup.send(view=view)
+            logger.debug("Avatar sent successfully")
+        except Exception as e:
+            logger.error(f"Error sending avatar: {e}", exc_info=True)
+            await interaction.followup.send(f"エラーが発生しました: {e}")

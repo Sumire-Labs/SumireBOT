@@ -40,6 +40,10 @@ class StatusManager:
     @tasks.loop(seconds=5)
     async def update_status(self) -> None:
         """ステータスを定期更新（システムモニター表示）"""
+        # 接続が閉じられている場合はスキップ
+        if self.bot.is_closed() or self.bot.ws is None or self.bot.ws.socket is None:
+            return
+
         try:
             # システム情報を別スレッドで取得
             system_cpu, mem_used, mem_total = await asyncio.to_thread(self._get_system_stats)
@@ -57,8 +61,15 @@ class StatusManager:
             await self.bot.change_presence(activity=activity)
             logger.debug(f"ステータス更新: {status_text}")
 
+        except (ConnectionResetError, OSError) as e:
+            # 接続切断時のエラーは警告レベルで出力（トレースバックなし）
+            logger.warning(f"ステータス更新スキップ（接続不安定）: {e}")
         except Exception as e:
-            logger.error(f"ステータス更新エラー: {e}", exc_info=True)
+            # 接続関連のエラーメッセージをチェック
+            if "closing transport" in str(e).lower():
+                logger.warning(f"ステータス更新スキップ（接続クローズ中）: {e}")
+            else:
+                logger.error(f"ステータス更新エラー: {e}", exc_info=True)
 
     @update_status.before_loop
     async def before_update_status(self) -> None:
