@@ -37,8 +37,7 @@ class AvatarView(ui.LayoutView):
         container.add_item(ui.Separator())
 
         # アバター画像
-        gallery = ui.MediaGallery()
-        gallery.add_item(discord.MediaGalleryItem(media=avatar_url))
+        gallery = ui.MediaGallery(discord.MediaGalleryItem(media=avatar_url))
         container.add_item(gallery)
 
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
