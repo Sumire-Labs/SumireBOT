@@ -72,10 +72,52 @@ class BookmarkView(ui.LayoutView):
 class ContextMenusMixin:
     """コンテキストメニューコマンド Mixin"""
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+    async def cog_load(self) -> None:
+        """Cog読み込み時にコンテキストメニューを登録"""
+        # 親クラスのcog_loadを呼び出す（あれば）
+        if hasattr(super(), 'cog_load'):
+            await super().cog_load()
+
+        # コンテキストメニューを作成・登録
+        self._bookmark_context_menu = app_commands.ContextMenu(
+            name="📌 ブックマーク",
+            callback=self._bookmark_message_callback,
+        )
+        self._get_link_context_menu = app_commands.ContextMenu(
+            name="🔗 リンクを取得",
+            callback=self._get_message_link_callback,
+        )
+        self._profile_context_menu = app_commands.ContextMenu(
+            name="👤 プロフィール",
+            callback=self._user_profile_callback,
+        )
+        self._avatar_context_menu = app_commands.ContextMenu(
+            name="🖼️ アバター",
+            callback=self._user_avatar_callback,
+        )
+
+        self.bot.tree.add_command(self._bookmark_context_menu)
+        self.bot.tree.add_command(self._get_link_context_menu)
+        self.bot.tree.add_command(self._profile_context_menu)
+        self.bot.tree.add_command(self._avatar_context_menu)
+
+    async def cog_unload(self) -> None:
+        """Cog解除時にコンテキストメニューを削除"""
+        self.bot.tree.remove_command(self._bookmark_context_menu.name, type=self._bookmark_context_menu.type)
+        self.bot.tree.remove_command(self._get_link_context_menu.name, type=self._get_link_context_menu.type)
+        self.bot.tree.remove_command(self._profile_context_menu.name, type=self._profile_context_menu.type)
+        self.bot.tree.remove_command(self._avatar_context_menu.name, type=self._avatar_context_menu.type)
+
+        # 親クラスのcog_unloadを呼び出す（あれば）
+        if hasattr(super(), 'cog_unload'):
+            await super().cog_unload()
+
     # ==================== メッセージコンテキストメニュー ====================
 
-    @app_commands.context_menu(name="📌 ブックマーク")
-    async def bookmark_message(
+    async def _bookmark_message_callback(
         self,
         interaction: discord.Interaction,
         message: discord.Message
@@ -105,8 +147,7 @@ class ContextMenusMixin:
             )
             await interaction.response.send_message(view=error_view, ephemeral=True)
 
-    @app_commands.context_menu(name="🔗 リンクを取得")
-    async def get_message_link(
+    async def _get_message_link_callback(
         self,
         interaction: discord.Interaction,
         message: discord.Message
@@ -119,8 +160,7 @@ class ContextMenusMixin:
 
     # ==================== ユーザーコンテキストメニュー ====================
 
-    @app_commands.context_menu(name="👤 プロフィール")
-    async def user_profile(
+    async def _user_profile_callback(
         self,
         interaction: discord.Interaction,
         user: discord.Member
@@ -160,8 +200,7 @@ class ContextMenusMixin:
 
         await interaction.followup.send(view=view, ephemeral=True)
 
-    @app_commands.context_menu(name="🖼️ アバター")
-    async def user_avatar(
+    async def _user_avatar_callback(
         self,
         interaction: discord.Interaction,
         user: discord.User
