@@ -23,6 +23,7 @@ COGS = [
     "cogs.admin",
     "cogs.giveaway",
     "cogs.poll",
+    "cogs.star",
 ]
 
 
