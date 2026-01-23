@@ -32,6 +32,16 @@ PLATFORM_FIXES = {
             ("instagram.com", "vxinstagram.com"),
         ],
     },
+    "twitter": {
+        "patterns": [
+            r"https?://(?:www\.)?twitter\.com/\w+/status/\d+",
+            r"https?://(?:www\.)?x\.com/\w+/status/\d+",
+        ],
+        "replacements": [
+            ("twitter.com", "vxtwitter.com"),
+            ("x.com", "vxtwitter.com"),
+        ],
+    },
 }
 
 
@@ -81,13 +91,42 @@ class EmbedFix(commands.Cog):
         # 各修正URLに対してメッセージを送信
         for platform, original_url, fixed_url in fixes:
             try:
-                # 通常メッセージとして送信（Discordが自動で埋め込み生成）
-                await message.reply(fixed_url, mention_author=False)
+                # ユーザー情報と日付、元メッセージ内容を含めて送信
+                timestamp = discord.utils.format_dt(message.created_at, style="f")
 
-                # 元メッセージの埋め込みを抑制
+                # 元メッセージの内容（リンク以外のテキスト）
+                original_content = message.content
+                for _, orig_url, _ in fixes:
+                    original_content = original_content.replace(orig_url, "").strip()
+
+                if original_content:
+                    content = f"{message.author.mention} ({timestamp})\n{original_content}\n{fixed_url}"
+                else:
+                    content = f"{message.author.mention} ({timestamp})\n{fixed_url}"
+
+                sent_message = await message.channel.send(content)
+
+                # スター対象チャンネルの場合、手動でスター処理
+                star_settings = await self.db.get_star_settings(message.guild.id)
+                if star_settings and star_settings.get("enabled", True):
+                    target_channels = star_settings.get("target_channels", [])
+                    if message.channel.id in target_channels:
+                        # ⭐リアクションを追加
+                        await sent_message.add_reaction("⭐")
+                        # 元のユーザーのauthor_idで記録
+                        await self.db.create_star_message(
+                            guild_id=message.guild.id,
+                            channel_id=message.channel.id,
+                            message_id=sent_message.id,
+                            author_id=message.author.id  # 元の投稿者
+                        )
+
+                # 元メッセージを削除
                 try:
-                    await message.edit(suppress=True)
+                    await message.delete()
                 except discord.Forbidden:
+                    logger.warning(f"元メッセージ削除権限なし: {message.channel.name}")
+                except discord.NotFound:
                     pass
 
                 logger.debug(f"埋め込み修正: {platform} - {message.author}")
