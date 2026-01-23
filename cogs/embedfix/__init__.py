@@ -24,62 +24,12 @@ logger = get_logger("sumire.cogs.embedfix")
 
 # 対応プラットフォームと修正URL
 PLATFORM_FIXES = {
-    "twitter": {
-        "patterns": [
-            r"https?://(?:www\.)?(?:twitter\.com|x\.com)/\S+/status/\d+",
-        ],
-        "replacements": [
-            ("twitter.com", "vxtwitter.com"),
-            ("x.com", "fixvx.com"),
-        ],
-    },
     "instagram": {
         "patterns": [
             r"https?://(?:www\.)?instagram\.com/(?:p|reel|reels)/[\w-]+",
         ],
         "replacements": [
-            ("instagram.com", "ddinstagram.com"),
-        ],
-    },
-    "tiktok": {
-        "patterns": [
-            r"https?://(?:www\.)?tiktok\.com/@[\w.]+/video/\d+",
-            r"https?://(?:vm|vt)\.tiktok\.com/\w+",
-        ],
-        "replacements": [
-            ("tiktok.com", "vxtiktok.com"),
-        ],
-    },
-    "reddit": {
-        "patterns": [
-            r"https?://(?:www\.)?reddit\.com/r/\w+/comments/\w+",
-        ],
-        "replacements": [
-            ("reddit.com", "rxddit.com"),
-        ],
-    },
-    "threads": {
-        "patterns": [
-            r"https?://(?:www\.)?threads\.net/@[\w.]+/post/[\w-]+",
-        ],
-        "replacements": [
-            ("threads.net", "fixthreads.net"),
-        ],
-    },
-    "bluesky": {
-        "patterns": [
-            r"https?://bsky\.app/profile/[\w.]+/post/\w+",
-        ],
-        "replacements": [
-            ("bsky.app", "bskyx.app"),
-        ],
-    },
-    "pixiv": {
-        "patterns": [
-            r"https?://(?:www\.)?pixiv\.net/(?:en/)?artworks/\d+",
-        ],
-        "replacements": [
-            ("pixiv.net", "phixiv.net"),
+            ("instagram.com", "vxinstagram.com"),
         ],
     },
 }
@@ -128,17 +78,11 @@ class EmbedFix(commands.Cog):
         if not fixes:
             return
 
-        # 各修正URLに対してViewを送信
+        # 各修正URLに対してメッセージを送信
         for platform, original_url, fixed_url in fixes:
             try:
-                view = EmbedFixView(
-                    original_user_id=message.author.id,
-                    platform=platform,
-                    fixed_url=fixed_url,
-                    original_url=original_url
-                )
-
-                await message.reply(view=view, mention_author=False)
+                # 通常メッセージとして送信（Discordが自動で埋め込み生成）
+                await message.reply(fixed_url, mention_author=False)
 
                 # 元メッセージの埋め込みを抑制
                 try:

@@ -28,13 +28,7 @@ class EmbedFixView(ui.LayoutView):
 
         # プラットフォームごとの設定
         platform_config = {
-            "twitter": {"emoji": "🐦", "name": "Twitter/X", "color": discord.Colour.from_rgb(29, 161, 242)},
             "instagram": {"emoji": "📸", "name": "Instagram", "color": discord.Colour.from_rgb(225, 48, 108)},
-            "tiktok": {"emoji": "🎵", "name": "TikTok", "color": discord.Colour.from_rgb(0, 0, 0)},
-            "reddit": {"emoji": "🤖", "name": "Reddit", "color": discord.Colour.from_rgb(255, 69, 0)},
-            "threads": {"emoji": "🧵", "name": "Threads", "color": discord.Colour.from_rgb(0, 0, 0)},
-            "bluesky": {"emoji": "🦋", "name": "Bluesky", "color": discord.Colour.from_rgb(0, 133, 255)},
-            "pixiv": {"emoji": "🎨", "name": "Pixiv", "color": discord.Colour.from_rgb(0, 150, 250)},
         }
 
         config = platform_config.get(platform, {"emoji": "🔗", "name": platform.title(), "color": discord.Colour.blurple()})
