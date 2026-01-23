@@ -24,6 +24,7 @@ COGS = [
     "cogs.giveaway",
     "cogs.poll",
     "cogs.star",
+    "cogs.embedfix",
 ]
 
 
