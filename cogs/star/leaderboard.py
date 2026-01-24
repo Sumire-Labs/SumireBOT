@@ -65,7 +65,10 @@ class StarLeaderboardMixin:
                 title="スターボード",
                 description="まだスターデータがありません。\n対象チャンネルに投稿してスターをもらいましょう！"
             )
-            await interaction.response.send_message(view=view)
+            await interaction.response.send_message(
+                view=view,
+                allowed_mentions=discord.AllowedMentions.none()
+            )
             return
 
         view = StarLeaderboardView(
@@ -75,4 +78,7 @@ class StarLeaderboardMixin:
             period=period
         )
 
-        await interaction.response.send_message(view=view)
+        await interaction.response.send_message(
+            view=view,
+            allowed_mentions=discord.AllowedMentions.none()
+        )
