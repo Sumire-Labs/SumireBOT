@@ -28,6 +28,10 @@ class Database:
 
         self._db = await aiosqlite.connect(db_path)
         self._db.row_factory = aiosqlite.Row
+
+        # WALモード有効化（読み書き並列可能、ロック競合軽減）
+        await self._db.execute("PRAGMA journal_mode=WAL")
+
         await self._init_tables()
 
     async def close(self) -> None:
