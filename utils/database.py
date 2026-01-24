@@ -5,8 +5,9 @@ from __future__ import annotations
 
 import aiosqlite
 import json
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, AsyncIterator
 from datetime import datetime
 
 
@@ -15,6 +16,7 @@ class Database:
 
     _instance: Optional[Database] = None
     _db: Optional[aiosqlite.Connection] = None
+    _in_transaction: bool = False
 
     def __new__(cls) -> Database:
         if cls._instance is None:
@@ -197,6 +199,14 @@ class Database:
                 participants TEXT DEFAULT '[]',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+            -- パフォーマンス向上用インデックス
+            CREATE INDEX IF NOT EXISTS idx_user_levels_guild_user ON user_levels(guild_id, user_id);
+            CREATE INDEX IF NOT EXISTS idx_user_levels_ranking ON user_levels(guild_id, level DESC, xp DESC);
+            CREATE INDEX IF NOT EXISTS idx_tickets_guild_user ON tickets(guild_id, user_id, status);
+            CREATE INDEX IF NOT EXISTS idx_giveaways_active ON giveaways(ended, end_time);
+            CREATE INDEX IF NOT EXISTS idx_polls_active ON polls(ended, end_time);
+            CREATE INDEX IF NOT EXISTS idx_star_messages_guild ON star_messages(guild_id, star_count DESC);
         """)
         await self._db.commit()
 
@@ -598,6 +608,35 @@ class Database:
             "SELECT * FROM user_levels WHERE guild_id = ? AND user_id = ?",
             (guild_id, user_id)
         ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return dict(row)
+            return None
+
+    async def get_user_level_with_ranks(self, guild_id: int, user_id: int) -> Optional[dict]:
+        """
+        ユーザーのレベルデータとランキングを一括取得（N+1クエリ対策）
+
+        Returns:
+            dict: ユーザーデータ + text_rank + vc_rank
+        """
+        async with self._db.execute("""
+            SELECT
+                u.*,
+                (
+                    SELECT COUNT(*) + 1 FROM user_levels
+                    WHERE guild_id = ? AND (
+                        level > u.level OR
+                        (level = u.level AND xp > u.xp)
+                    )
+                ) as text_rank,
+                (
+                    SELECT COUNT(*) + 1 FROM user_levels
+                    WHERE guild_id = ? AND vc_time > COALESCE(u.vc_time, 0)
+                ) as vc_rank
+            FROM user_levels u
+            WHERE u.guild_id = ? AND u.user_id = ?
+        """, (guild_id, guild_id, guild_id, user_id)) as cursor:
             row = await cursor.fetchone()
             if row:
                 return dict(row)
