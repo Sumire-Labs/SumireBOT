@@ -279,7 +279,9 @@ class TeamShufflePanelView(ui.LayoutView):
             title=panel["title"],
             teams=teams,
             creator=interaction.user,
-            guild=interaction.guild
+            guild=interaction.guild,
+            participants=participants,
+            team_count=team_count
         )
 
         # 元のメッセージを削除
@@ -362,26 +364,40 @@ class TeamShufflePanelView(ui.LayoutView):
 
 
 class TeamShuffleResultView(ui.LayoutView):
-    """チーム分け結果 View（静的）"""
+    """チーム分け結果 View"""
 
     def __init__(
         self,
         title: str,
         teams: list[list[int]],
         creator: discord.User | discord.Member,
-        guild: Optional[discord.Guild] = None
+        guild: Optional[discord.Guild] = None,
+        participants: Optional[list[int]] = None,
+        team_count: Optional[int] = None
     ) -> None:
-        super().__init__(timeout=300)  # 5分後にタイムアウト
+        super().__init__(timeout=None)  # 再シャッフル用に永続化
 
+        self._title = title
+        self._teams = teams
+        self._creator = creator
+        self._guild = guild
+        # 再シャッフル用にデータを保持
+        self._participants = participants or [uid for team in teams for uid in team]
+        self._team_count = team_count or len(teams)
+
+        self._build_ui()
+
+    def _build_ui(self) -> None:
+        """UIを構築"""
         container = ui.Container(accent_colour=discord.Colour.green())
 
         # ヘッダー
-        container.add_item(ui.TextDisplay(f"# 🎲 {title} - 結果"))
+        container.add_item(ui.TextDisplay(f"# 🎲 {self._title} - 結果"))
         container.add_item(ui.Separator())
 
         # 各チームを表示
-        total_participants = sum(len(team) for team in teams)
-        for i, team in enumerate(teams, 1):
+        total_participants = sum(len(team) for team in self._teams)
+        for i, team in enumerate(self._teams, 1):
             if team:
                 mentions = ", ".join(f"<@{uid}>" for uid in team)
                 container.add_item(ui.TextDisplay(f"### 📋 チーム{i}\n{mentions}"))
@@ -392,8 +408,49 @@ class TeamShuffleResultView(ui.LayoutView):
 
         # フッター
         container.add_item(ui.TextDisplay(
-            f"**実行者:** {creator.mention}\n"
-            f"**参加者:** {total_participants}人 → {len(teams)}チーム"
+            f"**実行者:** {self._creator.mention}\n"
+            f"**参加者:** {total_participants}人 → {len(self._teams)}チーム"
         ))
 
+        # 再シャッフルボタン
+        button_row = ui.ActionRow()
+        button_row.add_item(ui.Button(
+            label="🔄 再シャッフル",
+            style=discord.ButtonStyle.secondary,
+            custom_id="teamshuffle:reshuffle"
+        ))
+        container.add_item(button_row)
+
+        container.add_item(ui.TextDisplay("-# 作成者のみ再シャッフル可能"))
+
         self.add_item(container)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """インタラクションのチェック"""
+        custom_id = interaction.data.get("custom_id", "")
+
+        if custom_id == "teamshuffle:reshuffle":
+            await self.handle_reshuffle(interaction)
+            return False
+
+        return True
+
+    async def handle_reshuffle(self, interaction: discord.Interaction) -> None:
+        """再シャッフル処理"""
+        # 作成者チェック
+        if interaction.user.id != self._creator.id:
+            await interaction.response.send_message(
+                "再シャッフルできるのは作成者のみです。",
+                ephemeral=True
+            )
+            return
+
+        # 再シャッフル
+        new_teams = shuffle_teams(self._participants, self._team_count)
+
+        # Viewを更新
+        self._teams = new_teams
+        self.clear_items()
+        self._build_ui()
+
+        await interaction.response.edit_message(view=self)
