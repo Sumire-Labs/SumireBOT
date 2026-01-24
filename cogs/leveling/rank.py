@@ -101,7 +101,8 @@ class RankMixin:
         target = user or interaction.user
         guild_id = interaction.guild.id
 
-        user_data = await self.db.get_user_level(guild_id, target.id)
+        # 一括取得（N+1クエリ対策）
+        user_data = await self.db.get_user_level_with_ranks(guild_id, target.id)
 
         if not user_data:
             view = CommonInfoView(
@@ -111,17 +112,14 @@ class RankMixin:
             await interaction.response.send_message(view=view)
             return
 
-        text_rank = await self.db.get_user_rank(guild_id, target.id)
-        vc_rank = await self.db.get_user_vc_rank(guild_id, target.id)
-
         view = RankView(
             target=target,
             level=user_data["level"],
             xp=user_data["xp"],
-            text_rank=text_rank,
+            text_rank=user_data.get("text_rank"),
             vc_level=user_data.get("vc_level", 0),
             vc_time=user_data.get("vc_time", 0),
-            vc_rank=vc_rank,
+            vc_rank=user_data.get("vc_rank"),
             reactions_given=user_data.get("reactions_given", 0),
             reactions_received=user_data.get("reactions_received", 0)
         )
