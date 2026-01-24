@@ -45,14 +45,14 @@ class StatusManager:
             return
 
         try:
-            # システム情報を別スレッドで取得
-            system_cpu, mem_used, mem_total = await asyncio.to_thread(self._get_system_stats)
+            # プロセスのメモリ使用量を別スレッドで取得
+            mem_mb = await asyncio.to_thread(self._get_process_memory)
 
             # Discord API レイテンシ（ミリ秒）
             ping_ms = self.bot.latency * 1000
 
             # ステータス文字列
-            status_text = f"CPU {system_cpu:.0f}% | RAM {mem_used:.1f}/{mem_total:.0f}GB | Ping {ping_ms:.0f}ms"
+            status_text = f"RAM {mem_mb:.1f}MB | Ping {ping_ms:.0f}ms"
 
             activity = discord.Activity(
                 type=discord.ActivityType.watching,
@@ -77,10 +77,9 @@ class StatusManager:
         await self.bot.wait_until_ready()
 
     @staticmethod
-    def _get_system_stats() -> tuple[float, float, float]:
-        """システム統計を取得（同期関数）"""
-        cpu = psutil.cpu_percent(interval=1.0)
-        mem = psutil.virtual_memory()
-        mem_used_gb = mem.used / (1024 ** 3)
-        mem_total_gb = mem.total / (1024 ** 3)
-        return cpu, mem_used_gb, mem_total_gb
+    def _get_process_memory() -> float:
+        """プロセスのメモリ使用量を取得（同期関数）"""
+        process = psutil.Process()
+        mem_bytes = process.memory_info().rss
+        mem_mb = mem_bytes / (1024 ** 2)
+        return mem_mb
