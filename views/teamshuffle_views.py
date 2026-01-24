@@ -117,12 +117,17 @@ class TeamShufflePanelView(ui.LayoutView):
         ))
         container.add_item(select_row)
 
-        # シャッフル実行ボタン
+        # シャッフル実行・中止ボタン
         shuffle_row = ui.ActionRow()
         shuffle_row.add_item(ui.Button(
             label="🎲 シャッフル実行",
             style=discord.ButtonStyle.primary,
             custom_id="teamshuffle:shuffle"
+        ))
+        shuffle_row.add_item(ui.Button(
+            label="🗑️ 中止",
+            style=discord.ButtonStyle.danger,
+            custom_id="teamshuffle:cancel"
         ))
         container.add_item(shuffle_row)
 
@@ -148,6 +153,9 @@ class TeamShufflePanelView(ui.LayoutView):
             return False
         elif custom_id == "teamshuffle:shuffle":
             await self.handle_shuffle(interaction)
+            return False
+        elif custom_id == "teamshuffle:cancel":
+            await self.handle_cancel(interaction)
             return False
 
         return True
@@ -285,6 +293,42 @@ class TeamShufflePanelView(ui.LayoutView):
 
         # 結果を送信
         await interaction.response.send_message(view=result_view)
+
+    async def handle_cancel(self, interaction: discord.Interaction) -> None:
+        """中止処理"""
+        message_id = interaction.message.id
+
+        # パネル情報を取得
+        panel = await self.db.get_team_shuffle_panel(message_id)
+        if not panel:
+            await interaction.response.send_message(
+                "パネルが見つかりません。",
+                ephemeral=True
+            )
+            return
+
+        # 作成者チェック
+        if interaction.user.id != panel["creator_id"]:
+            await interaction.response.send_message(
+                "中止できるのは作成者のみです。",
+                ephemeral=True
+            )
+            return
+
+        # 先にレスポンスを送信
+        await interaction.response.send_message(
+            "🗑️ チーム分けくじを中止しました。",
+            ephemeral=True
+        )
+
+        # DBから削除
+        await self.db.delete_team_shuffle_panel(message_id)
+
+        # メッセージを削除
+        try:
+            await interaction.message.delete()
+        except Exception as e:
+            logger.error(f"パネル削除エラー: {e}")
 
     async def _update_view(self, interaction: discord.Interaction) -> None:
         """Viewを更新"""

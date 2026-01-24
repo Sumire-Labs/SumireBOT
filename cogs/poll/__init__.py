@@ -74,18 +74,15 @@ class Poll(commands.Cog):
             channel = self.bot.get_channel(poll["channel_id"])
             if not channel:
                 logger.warning(f"投票チャンネルが見つかりません: {poll['channel_id']}")
-                await self.db.end_poll(poll["message_id"])
+                await self.db.delete_poll(poll["message_id"])
                 return
 
             try:
                 message = await channel.fetch_message(poll["message_id"])
             except discord.NotFound:
                 logger.warning(f"投票メッセージが見つかりません: {poll['message_id']}")
-                await self.db.end_poll(poll["message_id"])
+                await self.db.delete_poll(poll["message_id"])
                 return
-
-            # データベースを更新
-            await self.db.end_poll(poll["message_id"])
 
             # Viewを更新
             new_view = PollEndedView(
@@ -95,7 +92,10 @@ class Poll(commands.Cog):
             )
 
             await message.edit(view=new_view)
-            logger.info(f"投票終了: {poll['question']}")
+
+            # データベースから削除
+            await self.db.delete_poll(poll["message_id"])
+            logger.info(f"投票終了・削除: {poll['question']}")
 
         except Exception as e:
             logger.error(f"投票終了処理エラー: {e}", exc_info=True)
