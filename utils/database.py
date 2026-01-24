@@ -42,6 +42,37 @@ class Database:
             await self._db.close()
             self._db = None
 
+    @asynccontextmanager
+    async def transaction(self) -> AsyncIterator[None]:
+        """
+        トランザクションコンテキストマネージャー
+        複数の操作をまとめてcommitし、I/Oを削減
+
+        Usage:
+            async with db.transaction():
+                await db.add_user_xp(...)
+                await db.add_reaction_given(...)
+            # ここで自動commit
+        """
+        self._in_transaction = True
+        try:
+            yield
+            await self._db.commit()
+        except Exception:
+            await self._db.rollback()
+            raise
+        finally:
+            self._in_transaction = False
+
+    async def _commit_if_not_in_transaction(self) -> None:
+        """トランザクション外の場合のみcommit"""
+        if not self._in_transaction:
+            await self._db.commit()
+
+    async def _commit(self) -> None:
+        """内部用commit（トランザクション対応）"""
+        await self._commit_if_not_in_transaction()
+
     async def _init_tables(self) -> None:
         """テーブルを初期化"""
         await self._db.executescript("""
@@ -240,7 +271,7 @@ class Database:
             "INSERT OR IGNORE INTO guild_settings (guild_id) VALUES (?)",
             (guild_id,)
         )
-        await self._db.commit()
+        await self._commit()
 
     async def get_guild_language(self, guild_id: int) -> str:
         """サーバーの言語設定を取得"""
@@ -274,7 +305,7 @@ class Database:
                 channel_id = excluded.channel_id,
                 enabled = 1
         """, (guild_id, channel_id))
-        await self._db.commit()
+        await self._commit()
 
     async def disable_logger(self, guild_id: int) -> None:
         """ログを無効化"""
@@ -282,7 +313,7 @@ class Database:
             "UPDATE logger_settings SET enabled = 0 WHERE guild_id = ?",
             (guild_id,)
         )
-        await self._db.commit()
+        await self._commit()
 
     async def update_logger_settings(
         self,
@@ -315,7 +346,7 @@ class Database:
                 f"UPDATE logger_settings SET {', '.join(updates)} WHERE guild_id = ?",
                 params
             )
-            await self._db.commit()
+            await self._commit()
 
     # ==================== チケット設定 ====================
 
@@ -346,7 +377,7 @@ class Database:
                 panel_channel_id = excluded.panel_channel_id,
                 panel_message_id = excluded.panel_message_id
         """, (guild_id, category_id, panel_channel_id, panel_message_id))
-        await self._db.commit()
+        await self._commit()
 
     async def get_next_ticket_number(self, guild_id: int) -> int:
         """次のチケット番号を取得して更新"""
@@ -361,7 +392,7 @@ class Database:
             "UPDATE ticket_settings SET ticket_counter = ? WHERE guild_id = ?",
             (next_number, guild_id)
         )
-        await self._db.commit()
+        await self._commit()
         return next_number
 
     # ==================== チケット管理 ====================
@@ -378,7 +409,7 @@ class Database:
             INSERT INTO tickets (guild_id, channel_id, user_id, ticket_number)
             VALUES (?, ?, ?, ?)
         """, (guild_id, channel_id, user_id, ticket_number))
-        await self._db.commit()
+        await self._commit()
         return cursor.lastrowid
 
     async def get_ticket_by_channel(self, channel_id: int) -> Optional[dict]:
@@ -399,7 +430,7 @@ class Database:
             "UPDATE tickets SET status = ?, closed_at = ? WHERE channel_id = ?",
             (status, closed_at, channel_id)
         )
-        await self._db.commit()
+        await self._commit()
 
     async def update_ticket_category(self, channel_id: int, category: str) -> None:
         """チケットのカテゴリを更新"""
@@ -407,7 +438,7 @@ class Database:
             "UPDATE tickets SET category = ? WHERE channel_id = ?",
             (category, channel_id)
         )
-        await self._db.commit()
+        await self._commit()
 
     async def get_user_open_tickets(self, guild_id: int, user_id: int) -> list[dict]:
         """ユーザーのオープンなチケットを取得"""
@@ -437,7 +468,7 @@ class Database:
                 view_type = excluded.view_type,
                 data = excluded.data
         """, (guild_id, channel_id, message_id, view_type, data_json))
-        await self._db.commit()
+        await self._commit()
 
     async def get_persistent_views(self, view_type: Optional[str] = None) -> list[dict]:
         """永続的Viewを取得"""
@@ -464,7 +495,7 @@ class Database:
             "DELETE FROM persistent_views WHERE message_id = ?",
             (message_id,)
         )
-        await self._db.commit()
+        await self._commit()
 
     # ==================== 音楽設定 ====================
 
@@ -487,7 +518,7 @@ class Database:
             ON CONFLICT(guild_id) DO UPDATE SET
                 default_volume = excluded.default_volume
         """, (guild_id, volume))
-        await self._db.commit()
+        await self._commit()
 
     # ==================== 自動ロール設定 ====================
 
@@ -531,7 +562,7 @@ class Database:
                 VALUES (?, ?, ?, ?)
             """, (guild_id, human_role_id, bot_role_id, 1 if enabled is None else (1 if enabled else 0)))
 
-        await self._db.commit()
+        await self._commit()
 
     async def clear_autorole(self, guild_id: int, role_type: str) -> None:
         """自動ロール設定をクリア（human または bot）"""
@@ -545,7 +576,7 @@ class Database:
                 "UPDATE autorole_settings SET bot_role_id = NULL WHERE guild_id = ?",
                 (guild_id,)
             )
-        await self._db.commit()
+        await self._commit()
 
     # ==================== レベルシステム ====================
 
@@ -570,7 +601,7 @@ class Database:
             ON CONFLICT(guild_id) DO UPDATE SET
                 enabled = excluded.enabled
         """, (guild_id, 1 if enabled else 0))
-        await self._db.commit()
+        await self._commit()
 
     async def add_ignored_channel(self, guild_id: int, channel_id: int) -> None:
         """レベルシステムの除外チャンネルを追加"""
@@ -585,7 +616,7 @@ class Database:
                 ON CONFLICT(guild_id) DO UPDATE SET
                     ignored_channels = excluded.ignored_channels
             """, (guild_id, json.dumps(ignored)))
-            await self._db.commit()
+            await self._commit()
 
     async def remove_ignored_channel(self, guild_id: int, channel_id: int) -> None:
         """レベルシステムの除外チャンネルを削除"""
@@ -600,7 +631,7 @@ class Database:
                 "UPDATE leveling_settings SET ignored_channels = ? WHERE guild_id = ?",
                 (json.dumps(ignored), guild_id)
             )
-            await self._db.commit()
+            await self._commit()
 
     async def get_user_level(self, guild_id: int, user_id: int) -> Optional[dict]:
         """ユーザーのレベルデータを取得"""
@@ -674,7 +705,7 @@ class Database:
                 level = excluded.level,
                 last_xp_time = excluded.last_xp_time
         """, (guild_id, user_id, new_xp, new_level))
-        await self._db.commit()
+        await self._commit()
 
         return new_xp, new_level, leveled_up
 
@@ -725,7 +756,7 @@ class Database:
             ON CONFLICT(guild_id, user_id) DO UPDATE SET
                 vc_join_time = CURRENT_TIMESTAMP
         """, (guild_id, user_id))
-        await self._db.commit()
+        await self._commit()
 
     async def add_vc_time(self, guild_id: int, user_id: int) -> tuple[int, int, bool]:
         """
@@ -759,7 +790,7 @@ class Database:
             SET vc_time = ?, vc_level = ?, vc_join_time = NULL
             WHERE guild_id = ? AND user_id = ?
         """, (new_vc_time, new_vc_level, guild_id, user_id))
-        await self._db.commit()
+        await self._commit()
 
         return new_vc_time, new_vc_level, leveled_up
 
@@ -769,7 +800,7 @@ class Database:
             UPDATE user_levels SET vc_join_time = NULL
             WHERE guild_id = ? AND user_id = ?
         """, (guild_id, user_id))
-        await self._db.commit()
+        await self._commit()
 
     async def get_vc_leaderboard(self, guild_id: int, limit: int = 10) -> list[dict]:
         """サーバーのVC時間ランキングを取得"""
@@ -805,7 +836,7 @@ class Database:
             ON CONFLICT(guild_id, user_id) DO UPDATE SET
                 reactions_given = reactions_given + 1
         """, (guild_id, user_id))
-        await self._db.commit()
+        await self._commit()
 
     async def add_reaction_received(self, guild_id: int, user_id: int) -> None:
         """リアクションをもらった数をインクリメント"""
@@ -815,7 +846,7 @@ class Database:
             ON CONFLICT(guild_id, user_id) DO UPDATE SET
                 reactions_received = reactions_received + 1
         """, (guild_id, user_id))
-        await self._db.commit()
+        await self._commit()
 
     # ==================== Giveaway ====================
 
@@ -834,7 +865,7 @@ class Database:
             INSERT INTO giveaways (guild_id, channel_id, message_id, host_id, prize, winner_count, end_time)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (guild_id, channel_id, message_id, host_id, prize, winner_count, end_time.isoformat()))
-        await self._db.commit()
+        await self._commit()
         return cursor.lastrowid
 
     async def get_giveaway(self, message_id: int) -> Optional[dict]:
@@ -880,7 +911,7 @@ class Database:
             "UPDATE giveaways SET participants = ? WHERE message_id = ?",
             (json.dumps(participants), message_id)
         )
-        await self._db.commit()
+        await self._commit()
         return True
 
     async def end_giveaway(self, message_id: int, winners: list[int]) -> None:
@@ -889,7 +920,7 @@ class Database:
             "UPDATE giveaways SET ended = 1, winners = ? WHERE message_id = ?",
             (json.dumps(winners), message_id)
         )
-        await self._db.commit()
+        await self._commit()
 
     async def delete_giveaway(self, message_id: int) -> None:
         """Giveawayを削除"""
@@ -897,7 +928,7 @@ class Database:
             "DELETE FROM giveaways WHERE message_id = ?",
             (message_id,)
         )
-        await self._db.commit()
+        await self._commit()
 
     # ==================== 投票 ====================
 
@@ -921,7 +952,7 @@ class Database:
             json.dumps(options), 1 if multi_select else 0,
             end_time.isoformat() if end_time else None
         ))
-        await self._db.commit()
+        await self._commit()
         return cursor.lastrowid
 
     async def get_poll(self, message_id: int) -> Optional[dict]:
@@ -983,7 +1014,7 @@ class Database:
             "UPDATE polls SET votes = ? WHERE message_id = ?",
             (json.dumps(votes), message_id)
         )
-        await self._db.commit()
+        await self._commit()
         return True
 
     async def end_poll(self, message_id: int) -> None:
@@ -992,7 +1023,7 @@ class Database:
             "UPDATE polls SET ended = 1 WHERE message_id = ?",
             (message_id,)
         )
-        await self._db.commit()
+        await self._commit()
 
     async def delete_poll(self, message_id: int) -> None:
         """投票を削除"""
@@ -1000,7 +1031,7 @@ class Database:
             "DELETE FROM polls WHERE message_id = ?",
             (message_id,)
         )
-        await self._db.commit()
+        await self._commit()
 
     # ==================== スター評価 ====================
 
@@ -1025,7 +1056,7 @@ class Database:
             ON CONFLICT(guild_id) DO UPDATE SET
                 enabled = excluded.enabled
         """, (guild_id, 1 if enabled else 0))
-        await self._db.commit()
+        await self._commit()
 
     async def add_star_channel(self, guild_id: int, channel_id: int) -> None:
         """スター対象チャンネルを追加"""
@@ -1040,7 +1071,7 @@ class Database:
                 ON CONFLICT(guild_id) DO UPDATE SET
                     target_channels = excluded.target_channels
             """, (guild_id, json.dumps(channels)))
-            await self._db.commit()
+            await self._commit()
 
     async def remove_star_channel(self, guild_id: int, channel_id: int) -> None:
         """スター対象チャンネルを削除"""
@@ -1055,7 +1086,7 @@ class Database:
                 "UPDATE star_settings SET target_channels = ? WHERE guild_id = ?",
                 (json.dumps(channels), guild_id)
             )
-            await self._db.commit()
+            await self._commit()
 
     async def clear_star_channels(self, guild_id: int) -> None:
         """スター対象チャンネルをすべてクリア"""
@@ -1063,7 +1094,7 @@ class Database:
             "UPDATE star_settings SET target_channels = '[]' WHERE guild_id = ?",
             (guild_id,)
         )
-        await self._db.commit()
+        await self._commit()
 
     # ==================== スターメッセージ ====================
 
@@ -1079,7 +1110,7 @@ class Database:
             INSERT INTO star_messages (guild_id, channel_id, message_id, author_id)
             VALUES (?, ?, ?, ?)
         """, (guild_id, channel_id, message_id, author_id))
-        await self._db.commit()
+        await self._commit()
         return cursor.lastrowid
 
     async def get_star_message(self, message_id: int) -> Optional[dict]:
@@ -1117,7 +1148,7 @@ class Database:
             "UPDATE star_messages SET starred_users = ?, star_count = ? WHERE message_id = ?",
             (json.dumps(starred_users), new_count, message_id)
         )
-        await self._db.commit()
+        await self._commit()
         return True
 
     async def remove_star(self, message_id: int, user_id: int) -> bool:
@@ -1142,7 +1173,7 @@ class Database:
             "UPDATE star_messages SET starred_users = ?, star_count = ? WHERE message_id = ?",
             (json.dumps(starred_users), new_count, message_id)
         )
-        await self._db.commit()
+        await self._commit()
         return True
 
     async def get_star_leaderboard(
@@ -1229,7 +1260,7 @@ class Database:
             "DELETE FROM star_messages WHERE message_id = ?",
             (message_id,)
         )
-        await self._db.commit()
+        await self._commit()
 
     # ==================== チーム分けくじ ====================
 
@@ -1246,7 +1277,7 @@ class Database:
             INSERT INTO team_shuffle_panels (guild_id, channel_id, message_id, creator_id, title)
             VALUES (?, ?, ?, ?, ?)
         """, (guild_id, channel_id, message_id, creator_id, title))
-        await self._db.commit()
+        await self._commit()
         return cursor.lastrowid
 
     async def get_team_shuffle_panel(self, message_id: int) -> Optional[dict]:
@@ -1282,7 +1313,7 @@ class Database:
             "UPDATE team_shuffle_panels SET participants = ? WHERE message_id = ?",
             (json.dumps(participants), message_id)
         )
-        await self._db.commit()
+        await self._commit()
         return True
 
     async def remove_team_shuffle_participant(self, message_id: int, user_id: int) -> bool:
@@ -1305,7 +1336,7 @@ class Database:
             "UPDATE team_shuffle_panels SET participants = ? WHERE message_id = ?",
             (json.dumps(participants), message_id)
         )
-        await self._db.commit()
+        await self._commit()
         return True
 
     async def update_team_shuffle_team_count(self, message_id: int, team_count: int) -> bool:
@@ -1323,7 +1354,7 @@ class Database:
             "UPDATE team_shuffle_panels SET team_count = ? WHERE message_id = ?",
             (team_count, message_id)
         )
-        await self._db.commit()
+        await self._commit()
         return True
 
     async def delete_team_shuffle_panel(self, message_id: int) -> None:
@@ -1332,4 +1363,4 @@ class Database:
             "DELETE FROM team_shuffle_panels WHERE message_id = ?",
             (message_id,)
         )
-        await self._db.commit()
+        await self._commit()
