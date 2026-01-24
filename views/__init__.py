@@ -41,3 +41,7 @@ from .poll_views import (
 )
 from .profile_views import ProfileView
 from .confess_views import ConfessView
+from .teamshuffle_views import (
+    TeamShufflePanelView,
+    TeamShuffleResultView
+)

@@ -26,9 +26,13 @@ class PersistentViewManager:
         Bot起動時に呼び出される
         """
         from .ticket_views import TicketPanelView, TicketControlView
+        from .teamshuffle_views import TeamShufflePanelView
 
         # チケットパネルView（custom_idベースで登録）
         bot.add_view(TicketPanelView(bot))
+
+        # チーム分けくじパネルView（custom_idベースで登録）
+        bot.add_view(TeamShufflePanelView(bot))
 
         # データベースから保存された永続的Viewを取得
         db = Database()
