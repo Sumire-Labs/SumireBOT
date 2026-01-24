@@ -26,6 +26,7 @@ COGS = [
     "cogs.star",
     "cogs.embedfix",
     "cogs.teamshuffle",
+    "cogs.warthunder",
 ]
 
 

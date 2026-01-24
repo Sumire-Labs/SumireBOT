@@ -45,3 +45,7 @@ from .teamshuffle_views import (
     TeamShufflePanelView,
     TeamShuffleResultView
 )
+from .br_roulette_views import (
+    BRRouletteView,
+    ExclusionModal
+)
