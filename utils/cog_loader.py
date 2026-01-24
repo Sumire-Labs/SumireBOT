@@ -25,6 +25,7 @@ COGS = [
     "cogs.poll",
     "cogs.star",
     "cogs.embedfix",
+    "cogs.teamshuffle",
 ]
 
 
