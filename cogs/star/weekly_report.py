@@ -93,7 +93,7 @@ class StarWeeklyReportMixin:
                 await self.db.update_weekly_report_last_sent(guild_id)
                 return
 
-            # レポートを送信
+            # レポートを送信（Components V2ではcontentは使用不可）
             view = StarLeaderboardView(
                 guild=guild,
                 message_rankings=message_rankings,
@@ -102,7 +102,6 @@ class StarWeeklyReportMixin:
             )
 
             await channel.send(
-                content="## 週間スターボードレポート",
                 view=view,
                 allowed_mentions=discord.AllowedMentions.none()
             )

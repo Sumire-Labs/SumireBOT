@@ -49,7 +49,10 @@ class AddWordModal(ui.Modal, title="単語を追加"):
         # UIを更新
         self.settings_view.clear_items()
         self.settings_view._build_ui()
-        await interaction.response.edit_message(view=self.settings_view)
+
+        # モーダルからの応答は defer してから edit
+        await interaction.response.defer()
+        await interaction.edit_original_response(view=self.settings_view)
 
         logger.info(f"単語追加: {word} in {self.settings_view.guild.name}")
 
