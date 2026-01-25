@@ -27,6 +27,7 @@ COGS = [
     "cogs.embedfix",
     "cogs.teamshuffle",
     "cogs.warthunder",
+    "cogs.wordcounter",
 ]
 
 
