@@ -46,16 +46,15 @@ class LoginResponse(BaseModel):
     url: str
 
 
-@auth_router.get("/login", response_model=LoginResponse)
+@auth_router.get("/login")
 async def login(
     redirect: Optional[str] = None,
     config: Config = Depends(get_config),
-) -> LoginResponse:
+) -> RedirectResponse:
     """
-    Discord OAuth2 ログインURLを取得
+    Discord OAuth2 ログイン
 
-    Parameters:
-        redirect: ログイン後のリダイレクト先（オプション）
+    Discord認証ページにリダイレクト
     """
     oauth = get_oauth()
 
@@ -70,7 +69,7 @@ async def login(
         del _oauth_states[s]
 
     url = oauth.get_authorization_url(state)
-    return LoginResponse(url=url)
+    return RedirectResponse(url=url, status_code=status.HTTP_302_FOUND)
 
 
 @auth_router.get("/callback")
@@ -127,7 +126,14 @@ async def callback(
     logger.info(f"ユーザーがログインしました: {user.username} (ID: {user.id})")
 
     # ダッシュボードにリダイレクト
-    response = RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
+    # 開発時はフロントエンドURL、本番時はbase_urlを使用
+    frontend_url = config.get("web", "frontend_url", default=None)
+    if frontend_url:
+        redirect_url = f"{frontend_url}/dashboard"
+    else:
+        redirect_url = "/dashboard"
+
+    response = RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)
 
     # セッションCookieを設定
     response.set_cookie(
