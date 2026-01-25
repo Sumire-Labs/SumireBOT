@@ -37,3 +37,11 @@ api_router.include_router(guilds_router, prefix="/guilds", tags=["guilds"])
 # ランキングルーター
 from web.api.leaderboards import leaderboards_router
 api_router.include_router(leaderboards_router, prefix="/guilds/{guild_id}/leaderboard", tags=["leaderboards"])
+
+# Giveawayルーター
+from web.api.giveaways import giveaways_router
+api_router.include_router(giveaways_router, prefix="/guilds/{guild_id}/giveaways", tags=["giveaways"])
+
+# Pollルーター
+from web.api.polls import polls_router
+api_router.include_router(polls_router, prefix="/guilds/{guild_id}/polls", tags=["polls"])

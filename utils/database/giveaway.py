@@ -95,3 +95,52 @@ class GiveawayMixin:
             (message_id,)
         )
         await self._commit()
+
+    # ==================== Web API用メソッド ====================
+
+    async def get_guild_giveaways(self, guild_id: int, active_only: bool = False) -> list[dict]:
+        """ギルドのGiveaway一覧を取得"""
+        if active_only:
+            query = "SELECT * FROM giveaways WHERE guild_id = ? AND ended = 0 ORDER BY end_time ASC"
+        else:
+            query = "SELECT * FROM giveaways WHERE guild_id = ? ORDER BY ended ASC, end_time DESC"
+
+        async with self._db.execute(query, (guild_id,)) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                result = dict(row)
+                result["participants"] = json.loads(result.get("participants", "[]"))
+                result["winners"] = json.loads(result.get("winners", "[]"))
+                results.append(result)
+            return results
+
+    async def get_giveaway_by_id(self, giveaway_id: int) -> Optional[dict]:
+        """IDでGiveawayを取得"""
+        async with self._db.execute(
+            "SELECT * FROM giveaways WHERE id = ?",
+            (giveaway_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                result = dict(row)
+                result["participants"] = json.loads(result.get("participants", "[]"))
+                result["winners"] = json.loads(result.get("winners", "[]"))
+                return result
+            return None
+
+    async def update_giveaway_winners(self, giveaway_id: int, winners: list[int]) -> None:
+        """Giveawayの当選者を更新（再抽選用）"""
+        await self._db.execute(
+            "UPDATE giveaways SET winners = ? WHERE id = ?",
+            (json.dumps(winners), giveaway_id)
+        )
+        await self._commit()
+
+    async def end_giveaway_by_id(self, giveaway_id: int, winners: list[int]) -> None:
+        """IDでGiveawayを終了"""
+        await self._db.execute(
+            "UPDATE giveaways SET ended = 1, winners = ? WHERE id = ?",
+            (json.dumps(winners), giveaway_id)
+        )
+        await self._commit()

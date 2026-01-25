@@ -116,3 +116,44 @@ class PollMixin:
             (message_id,)
         )
         await self._commit()
+
+    # ==================== Web API用メソッド ====================
+
+    async def get_guild_polls(self, guild_id: int, active_only: bool = False) -> list[dict]:
+        """ギルドの投票一覧を取得"""
+        if active_only:
+            query = "SELECT * FROM polls WHERE guild_id = ? AND ended = 0 ORDER BY created_at DESC"
+        else:
+            query = "SELECT * FROM polls WHERE guild_id = ? ORDER BY ended ASC, created_at DESC"
+
+        async with self._db.execute(query, (guild_id,)) as cursor:
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                result = dict(row)
+                result["options"] = json.loads(result.get("options", "[]"))
+                result["votes"] = json.loads(result.get("votes", "{}"))
+                results.append(result)
+            return results
+
+    async def get_poll_by_id(self, poll_id: int) -> Optional[dict]:
+        """IDで投票を取得"""
+        async with self._db.execute(
+            "SELECT * FROM polls WHERE id = ?",
+            (poll_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                result = dict(row)
+                result["options"] = json.loads(result.get("options", "[]"))
+                result["votes"] = json.loads(result.get("votes", "{}"))
+                return result
+            return None
+
+    async def end_poll_by_id(self, poll_id: int) -> None:
+        """IDで投票を終了"""
+        await self._db.execute(
+            "UPDATE polls SET ended = 1 WHERE id = ?",
+            (poll_id,)
+        )
+        await self._commit()
