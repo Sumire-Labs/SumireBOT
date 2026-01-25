@@ -21,40 +21,30 @@ sumirebot/
 ├── start.ps1                  # 起動スクリプト (自動再起動対応)
 │
 ├── cogs/                      # 機能モジュール (Mixin パターン)
-│   ├── general/               # 一般コマンド
-│   │   ├── ping.py            # /ping
-│   │   ├── avatar.py          # /avatar
-│   │   └── profile.py         # /profile
-│   ├── utility/               # ユーティリティ
-│   │   ├── translate.py       # /translate
-│   │   ├── logger.py          # サーバーログシステム
-│   │   ├── confess.py         # /confess 匿名告白
-│   │   └── context_menus.py   # 右クリックメニュー
-│   ├── moderation/            # モデレーション
-│   │   ├── ban.py             # /ban
-│   │   ├── kick.py            # /kick
-│   │   └── timeout.py         # /timeout
-│   ├── music/                 # 音楽プレイヤー
-│   │   ├── play.py            # /play
-│   │   ├── skip.py            # /skip
-│   │   ├── leave.py           # /leave
-│   │   ├── loop.py            # /loop
-│   │   └── events.py          # 音楽イベント処理
-│   ├── leveling/              # レベルシステム
-│   │   ├── rank.py            # /rank
-│   │   ├── leaderboard.py     # /leaderboard
-│   │   ├── settings.py        # レベル設定
-│   │   └── events.py          # XP付与イベント
+│   ├── general/               # 一般コマンド (/ping, /avatar, /profile)
+│   ├── utility/               # ユーティリティ (/translate, /confess, ログシステム)
+│   ├── moderation/            # モデレーション (/ban, /kick, /timeout)
+│   ├── music/                 # 音楽プレイヤー (/play, /skip, /leave, /loop)
+│   ├── leveling/              # レベルシステム (/rank, /leaderboard)
 │   ├── ticket/                # チケットシステム
-│   ├── admin/                 # 管理者機能
-│   │   ├── autorole.py        # 自動ロール付与
-│   │   └── owner.py           # オーナー専用コマンド
-│   ├── giveaway/              # 抽選システム
-│   └── poll/                  # 投票システム
+│   ├── admin/                 # 管理者機能 (自動ロール, オーナーコマンド)
+│   ├── giveaway/              # 抽選システム (/giveaway)
+│   ├── poll/                  # 投票システム (/poll)
+│   ├── star/                  # スター評価システム (/star, /starboard)
+│   ├── embedfix/              # SNS埋め込み修正 (Instagram, Twitter/X, Medal.tv)
+│   ├── teamshuffle/           # チーム分けくじ (/teamshuffle)
+│   ├── warthunder/            # War Thunder BRルーレット (/wt-roulette)
+│   └── wordcounter/           # 単語カウンター (/counter, /counterboard, /mycount)
 │
 ├── utils/                     # ユーティリティ
 │   ├── config.py              # Config singleton (YAML読み込み)
-│   ├── database.py            # Database singleton (aiosqlite)
+│   ├── database/              # Database モジュール (Mixin パターン)
+│   │   ├── core.py            # 接続・トランザクション・テーブル初期化
+│   │   ├── guild.py           # サーバー設定
+│   │   ├── leveling.py        # レベルシステム
+│   │   ├── star.py            # スター評価
+│   │   ├── wordcounter.py     # 単語カウンター
+│   │   └── ...                # 各機能のMixin
 │   ├── embeds.py              # Embed生成ヘルパー
 │   ├── checks.py              # パーミッションデコレータ
 │   ├── logging.py             # ロギング設定
@@ -66,12 +56,11 @@ sumirebot/
 │   ├── common_views.py        # 共通View (Success/Error/Warning/Info)
 │   ├── ticket_views.py        # チケットUI
 │   ├── music_views.py         # 音楽プレイヤーUI
-│   ├── moderation_views.py    # モデレーションUI
-│   ├── log_views.py           # ログ表示UI
+│   ├── star_views.py          # スター評価UI
+│   ├── wordcounter_views.py   # 単語カウンターUI
+│   ├── teamshuffle_views.py   # チーム分けくじUI
 │   ├── giveaway_views.py      # 抽選UI
 │   ├── poll_views.py          # 投票UI
-│   ├── profile_views.py       # プロフィールUI
-│   ├── confess_views.py       # 告白UI
 │   └── persistent.py          # 永続的View管理
 │
 └── database/                  # SQLiteファイル (自動生成)
@@ -138,4 +127,19 @@ giveaways (id PK, guild_id, channel_id, message_id UNIQUE, host_id, prize, winne
 
 -- 投票
 polls (id PK, guild_id, channel_id, message_id UNIQUE, author_id, question, options, votes, end_time, ended, created_at)
+
+-- スター評価設定
+star_settings (guild_id PK, enabled, target_channels JSON, weekly_report_channel_id, weekly_report_last_sent)
+
+-- スターメッセージ
+star_messages (id PK, guild_id, channel_id, message_id UNIQUE, author_id, star_count, starred_users JSON, created_at)
+
+-- チーム分けくじ
+team_shuffle_panels (id PK, guild_id, channel_id, message_id UNIQUE, creator_id, title, team_count, participants JSON, created_at)
+
+-- 単語カウンター設定
+wordcounter_settings (guild_id PK, enabled, words JSON, milestones JSON)
+
+-- 単語カウント
+wordcounter_counts (id PK, guild_id, user_id, word, count, last_milestone, updated_at, UNIQUE(guild_id, user_id, word))
 ```
