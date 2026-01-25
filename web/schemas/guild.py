@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 class GuildInfo(BaseModel):
     """ギルド基本情報"""
-    id: int
+    id: str  # Discord Snowflake ID (string to avoid JS precision loss)
     name: str
     icon_url: Optional[str] = None
     member_count: int
@@ -21,7 +21,7 @@ class GuildInfo(BaseModel):
 
 class GuildListItem(BaseModel):
     """ギルド一覧アイテム"""
-    id: int
+    id: str  # Discord Snowflake ID (string to avoid JS precision loss)
     name: str
     icon_url: Optional[str] = None
     has_manage_permission: bool
@@ -30,14 +30,14 @@ class GuildListItem(BaseModel):
 
 class ChannelInfo(BaseModel):
     """チャンネル情報"""
-    id: int
+    id: str  # Discord Snowflake ID (string to avoid JS precision loss)
     name: str
     type: str  # "text", "voice", "category"
 
 
 class RoleInfo(BaseModel):
     """ロール情報"""
-    id: int
+    id: str  # Discord Snowflake ID (string to avoid JS precision loss)
     name: str
     color: int
     position: int
@@ -48,27 +48,27 @@ class RoleInfo(BaseModel):
 class LevelingSettings(BaseModel):
     """レベリング設定"""
     enabled: bool = True
-    ignored_channels: list[int] = []
+    ignored_channels: list[str] = []  # Discord Snowflake IDs
 
 
 class LevelingSettingsUpdate(BaseModel):
     """レベリング設定更新"""
     enabled: Optional[bool] = None
-    ignored_channels: Optional[list[int]] = None
+    ignored_channels: Optional[list[str]] = None
 
 
 class StarSettings(BaseModel):
     """スター設定"""
     enabled: bool = True
-    target_channels: list[int] = []
-    weekly_report_channel_id: Optional[int] = None
+    target_channels: list[str] = []  # Discord Snowflake IDs
+    weekly_report_channel_id: Optional[str] = None
 
 
 class StarSettingsUpdate(BaseModel):
     """スター設定更新"""
     enabled: Optional[bool] = None
-    target_channels: Optional[list[int]] = None
-    weekly_report_channel_id: Optional[int] = None
+    target_channels: Optional[list[str]] = None
+    weekly_report_channel_id: Optional[str] = None
 
 
 class WordCounterSettings(BaseModel):
@@ -88,7 +88,7 @@ class WordCounterSettingsUpdate(BaseModel):
 class LoggerSettings(BaseModel):
     """ロガー設定"""
     enabled: bool = False
-    channel_id: Optional[int] = None
+    channel_id: Optional[str] = None  # Discord Snowflake ID
     log_messages: bool = True
     log_channels: bool = True
     log_roles: bool = True
@@ -98,7 +98,7 @@ class LoggerSettings(BaseModel):
 class LoggerSettingsUpdate(BaseModel):
     """ロガー設定更新"""
     enabled: Optional[bool] = None
-    channel_id: Optional[int] = None
+    channel_id: Optional[str] = None
     log_messages: Optional[bool] = None
     log_channels: Optional[bool] = None
     log_roles: Optional[bool] = None
@@ -108,37 +108,37 @@ class LoggerSettingsUpdate(BaseModel):
 class AutoroleSettings(BaseModel):
     """自動ロール設定"""
     enabled: bool = True
-    human_role_id: Optional[int] = None
-    bot_role_id: Optional[int] = None
+    human_role_id: Optional[str] = None  # Discord Snowflake ID
+    bot_role_id: Optional[str] = None  # Discord Snowflake ID
 
 
 class AutoroleSettingsUpdate(BaseModel):
     """自動ロール設定更新"""
     enabled: Optional[bool] = None
-    human_role_id: Optional[int] = None
-    bot_role_id: Optional[int] = None
+    human_role_id: Optional[str] = None
+    bot_role_id: Optional[str] = None
 
 
 class TicketSettings(BaseModel):
     """チケット設定"""
-    category_id: Optional[int] = None
-    panel_channel_id: Optional[int] = None
-    panel_message_id: Optional[int] = None
+    category_id: Optional[str] = None  # Discord Snowflake ID
+    panel_channel_id: Optional[str] = None  # Discord Snowflake ID
+    panel_message_id: Optional[str] = None  # Discord Snowflake ID
     ticket_counter: int = 0
 
 
 class MusicSettings(BaseModel):
     """音楽設定"""
     default_volume: int = 50
-    dj_role_id: Optional[int] = None
-    music_channel_id: Optional[int] = None
+    dj_role_id: Optional[str] = None  # Discord Snowflake ID
+    music_channel_id: Optional[str] = None  # Discord Snowflake ID
 
 
 class MusicSettingsUpdate(BaseModel):
     """音楽設定更新"""
     default_volume: Optional[int] = None
-    dj_role_id: Optional[int] = None
-    music_channel_id: Optional[int] = None
+    dj_role_id: Optional[str] = None
+    music_channel_id: Optional[str] = None
 
 
 # ==================== 全設定まとめ ====================

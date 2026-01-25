@@ -77,7 +77,7 @@ async def get_guilds(
         logger.info(f"User guild: id={guild.id}, name={guild.name}, manage={guild.has_manage_guild}, bot_joined={guild.id in bot_guild_ids}")
         if guild.has_manage_guild:
             guilds.append(GuildListItem(
-                id=guild.id,
+                id=str(guild.id),  # Convert to string to avoid JS precision loss
                 name=guild.name,
                 icon_url=guild.icon_url,
                 has_manage_permission=True,
@@ -99,15 +99,15 @@ async def get_guild(
     channels = []
     for channel in guild.channels:
         if isinstance(channel, discord.TextChannel):
-            channels.append(ChannelInfo(id=channel.id, name=channel.name, type="text"))
+            channels.append(ChannelInfo(id=str(channel.id), name=channel.name, type="text"))
         elif isinstance(channel, discord.VoiceChannel):
-            channels.append(ChannelInfo(id=channel.id, name=channel.name, type="voice"))
+            channels.append(ChannelInfo(id=str(channel.id), name=channel.name, type="voice"))
         elif isinstance(channel, discord.CategoryChannel):
-            channels.append(ChannelInfo(id=channel.id, name=channel.name, type="category"))
+            channels.append(ChannelInfo(id=str(channel.id), name=channel.name, type="category"))
 
     # ロール一覧（@everyoneを除く）
     roles = [
-        RoleInfo(id=role.id, name=role.name, color=role.color.value, position=role.position)
+        RoleInfo(id=str(role.id), name=role.name, color=role.color.value, position=role.position)
         for role in guild.roles
         if role.name != "@everyone"
     ]
@@ -118,7 +118,7 @@ async def get_guild(
 
     return GuildDetailResponse(
         info=GuildInfo(
-            id=guild.id,
+            id=str(guild.id),  # Convert to string to avoid JS precision loss
             name=guild.name,
             icon_url=str(guild.icon.url) if guild.icon else None,
             member_count=guild.member_count,
@@ -130,21 +130,31 @@ async def get_guild(
     )
 
 
+def _int_to_str(value: int | None) -> str | None:
+    """Convert int ID to string, or return None"""
+    return str(value) if value is not None else None
+
+
+def _int_list_to_str_list(values: list[int]) -> list[str]:
+    """Convert list of int IDs to list of strings"""
+    return [str(v) for v in values]
+
+
 async def _get_guild_settings(db: Database, guild_id: int) -> GuildSettings:
     """ギルドの全設定を取得"""
     # レベリング設定
     leveling_data = await db.get_leveling_settings(guild_id)
     leveling = LevelingSettings(
         enabled=bool(leveling_data.get("enabled", True)),
-        ignored_channels=json.loads(leveling_data.get("ignored_channels", "[]")),
+        ignored_channels=_int_list_to_str_list(json.loads(leveling_data.get("ignored_channels", "[]"))),
     )
 
     # スター設定
     star_data = await db.get_star_settings(guild_id)
     star = StarSettings(
         enabled=bool(star_data.get("enabled", True)),
-        target_channels=json.loads(star_data.get("target_channels", "[]")),
-        weekly_report_channel_id=star_data.get("weekly_report_channel_id"),
+        target_channels=_int_list_to_str_list(json.loads(star_data.get("target_channels", "[]"))),
+        weekly_report_channel_id=_int_to_str(star_data.get("weekly_report_channel_id")),
     )
 
     # 単語カウンター設定
@@ -159,7 +169,7 @@ async def _get_guild_settings(db: Database, guild_id: int) -> GuildSettings:
     logger_data = await db.get_logger_settings(guild_id)
     logger_settings = LoggerSettings(
         enabled=bool(logger_data.get("enabled", False)) if logger_data else False,
-        channel_id=logger_data.get("channel_id") if logger_data else None,
+        channel_id=_int_to_str(logger_data.get("channel_id")) if logger_data else None,
         log_messages=bool(logger_data.get("log_messages", True)) if logger_data else True,
         log_channels=bool(logger_data.get("log_channels", True)) if logger_data else True,
         log_roles=bool(logger_data.get("log_roles", True)) if logger_data else True,
@@ -170,16 +180,16 @@ async def _get_guild_settings(db: Database, guild_id: int) -> GuildSettings:
     autorole_data = await db.get_autorole_settings(guild_id)
     autorole = AutoroleSettings(
         enabled=bool(autorole_data.get("enabled", True)) if autorole_data else True,
-        human_role_id=autorole_data.get("human_role_id") if autorole_data else None,
-        bot_role_id=autorole_data.get("bot_role_id") if autorole_data else None,
+        human_role_id=_int_to_str(autorole_data.get("human_role_id")) if autorole_data else None,
+        bot_role_id=_int_to_str(autorole_data.get("bot_role_id")) if autorole_data else None,
     )
 
     # チケット設定
     ticket_data = await db.get_ticket_settings(guild_id)
     ticket = TicketSettings(
-        category_id=ticket_data.get("category_id") if ticket_data else None,
-        panel_channel_id=ticket_data.get("panel_channel_id") if ticket_data else None,
-        panel_message_id=ticket_data.get("panel_message_id") if ticket_data else None,
+        category_id=_int_to_str(ticket_data.get("category_id")) if ticket_data else None,
+        panel_channel_id=_int_to_str(ticket_data.get("panel_channel_id")) if ticket_data else None,
+        panel_message_id=_int_to_str(ticket_data.get("panel_message_id")) if ticket_data else None,
         ticket_counter=ticket_data.get("ticket_counter", 0) if ticket_data else 0,
     )
 
@@ -187,8 +197,8 @@ async def _get_guild_settings(db: Database, guild_id: int) -> GuildSettings:
     music_data = await db.get_music_settings(guild_id)
     music = MusicSettings(
         default_volume=music_data.get("default_volume", 50) if music_data else 50,
-        dj_role_id=music_data.get("dj_role_id") if music_data else None,
-        music_channel_id=music_data.get("music_channel_id") if music_data else None,
+        dj_role_id=_int_to_str(music_data.get("dj_role_id")) if music_data else None,
+        music_channel_id=_int_to_str(music_data.get("music_channel_id")) if music_data else None,
     )
 
     return GuildSettings(
@@ -214,12 +224,14 @@ async def update_leveling_settings(
     if data.enabled is not None:
         await db.set_leveling_enabled(guild.id, data.enabled)
     if data.ignored_channels is not None:
-        await db.set_leveling_ignored_channels(guild.id, data.ignored_channels)
+        # Convert string IDs back to int for database storage
+        int_channels = [int(ch) for ch in data.ignored_channels]
+        await db.set_leveling_ignored_channels(guild.id, int_channels)
 
     settings = await db.get_leveling_settings(guild.id)
     return LevelingSettings(
         enabled=bool(settings.get("enabled", True)),
-        ignored_channels=json.loads(settings.get("ignored_channels", "[]")),
+        ignored_channels=_int_list_to_str_list(json.loads(settings.get("ignored_channels", "[]"))),
     )
 
 
@@ -233,15 +245,17 @@ async def update_star_settings(
     if data.enabled is not None:
         await db.set_star_enabled(guild.id, data.enabled)
     if data.target_channels is not None:
-        await db.set_star_target_channels(guild.id, data.target_channels)
+        # Convert string IDs back to int for database storage
+        int_channels = [int(ch) for ch in data.target_channels]
+        await db.set_star_target_channels(guild.id, int_channels)
     if data.weekly_report_channel_id is not None:
-        await db.set_star_weekly_report_channel(guild.id, data.weekly_report_channel_id)
+        await db.set_star_weekly_report_channel(guild.id, int(data.weekly_report_channel_id))
 
     settings = await db.get_star_settings(guild.id)
     return StarSettings(
         enabled=bool(settings.get("enabled", True)),
-        target_channels=json.loads(settings.get("target_channels", "[]")),
-        weekly_report_channel_id=settings.get("weekly_report_channel_id"),
+        target_channels=_int_list_to_str_list(json.loads(settings.get("target_channels", "[]"))),
+        weekly_report_channel_id=_int_to_str(settings.get("weekly_report_channel_id")),
     )
 
 
@@ -278,16 +292,16 @@ async def update_logger_settings(
     if data.enabled is not None:
         await db.set_logger_enabled(guild.id, data.enabled)
     if data.channel_id is not None:
-        await db.set_logger_channel(guild.id, data.channel_id)
+        await db.set_logger_channel(guild.id, int(data.channel_id))
 
     settings = await db.get_logger_settings(guild.id)
     return LoggerSettings(
         enabled=bool(settings.get("enabled", False)) if settings else False,
-        channel_id=settings.get("channel_id") if settings else None,
+        channel_id=_int_to_str(settings.get("channel_id")) if settings else None,
         log_messages=bool(settings.get("log_messages", True)) if settings else True,
         log_channels=bool(settings.get("log_channels", True)) if settings else True,
         log_roles=bool(settings.get("log_roles", True)) if settings else True,
-        log_members=bool(settings.get("log_members", True)) if settings else True,
+        log_members=bool(settings.get("log_messages", True)) if settings else True,
     )
 
 
@@ -301,15 +315,15 @@ async def update_autorole_settings(
     if data.enabled is not None:
         await db.set_autorole_enabled(guild.id, data.enabled)
     if data.human_role_id is not None:
-        await db.set_autorole_human_role(guild.id, data.human_role_id)
+        await db.set_autorole_human_role(guild.id, int(data.human_role_id))
     if data.bot_role_id is not None:
-        await db.set_autorole_bot_role(guild.id, data.bot_role_id)
+        await db.set_autorole_bot_role(guild.id, int(data.bot_role_id))
 
     settings = await db.get_autorole_settings(guild.id)
     return AutoroleSettings(
         enabled=bool(settings.get("enabled", True)) if settings else True,
-        human_role_id=settings.get("human_role_id") if settings else None,
-        bot_role_id=settings.get("bot_role_id") if settings else None,
+        human_role_id=_int_to_str(settings.get("human_role_id")) if settings else None,
+        bot_role_id=_int_to_str(settings.get("bot_role_id")) if settings else None,
     )
 
 
@@ -323,13 +337,13 @@ async def update_music_settings(
     if data.default_volume is not None:
         await db.set_music_volume(guild.id, data.default_volume)
     if data.dj_role_id is not None:
-        await db.set_music_dj_role(guild.id, data.dj_role_id)
+        await db.set_music_dj_role(guild.id, int(data.dj_role_id))
     if data.music_channel_id is not None:
-        await db.set_music_channel(guild.id, data.music_channel_id)
+        await db.set_music_channel(guild.id, int(data.music_channel_id))
 
     settings = await db.get_music_settings(guild.id)
     return MusicSettings(
         default_volume=settings.get("default_volume", 50) if settings else 50,
-        dj_role_id=settings.get("dj_role_id") if settings else None,
-        music_channel_id=settings.get("music_channel_id") if settings else None,
+        dj_role_id=_int_to_str(settings.get("dj_role_id")) if settings else None,
+        music_channel_id=_int_to_str(settings.get("music_channel_id")) if settings else None,
     )
