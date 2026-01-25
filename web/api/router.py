@@ -26,9 +26,9 @@ async def bot_info():
     }
 
 
-# 認証ルーター（Phase 2で実装）
-# from web.api.auth import auth_router
-# api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
+# 認証ルーター
+from web.api.auth import auth_router
+api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 
 # ギルドルーター（Phase 3で実装）
 # from web.api.guilds import guilds_router
