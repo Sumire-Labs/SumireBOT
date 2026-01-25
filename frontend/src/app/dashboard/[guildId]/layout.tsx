@@ -28,6 +28,7 @@ export default function GuildLayout({ children }: { children: React.ReactNode })
     queryKey: ['guild', guildId],
     queryFn: () => guildsApi.get(guildId),
     enabled: isAuthenticated && !!guildId,
+    retry: false, // Don't retry on error
   });
 
   useEffect(() => {
@@ -38,13 +39,60 @@ export default function GuildLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (error) {
-      router.push('/dashboard');
+      console.error('Guild fetch error:', error);
+      // Show error for debugging instead of redirecting
+      // router.push('/dashboard');
     }
   }, [error, router]);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
+
+  if (error) {
+    return (
+      <Box sx={{ minHeight: '100vh' }}>
+        <Header showMenuButton={isMobile} onMenuClick={handleDrawerToggle} />
+        <Toolbar />
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 'calc(100vh - 64px)',
+            gap: 2,
+            p: 3,
+          }}
+        >
+          <Box sx={{ color: 'error.main', fontSize: '3rem' }}>⚠️</Box>
+          <Box sx={{ textAlign: 'center' }}>
+            <Box sx={{ fontSize: '1.5rem', fontWeight: 600, mb: 1 }}>Failed to load server</Box>
+            <Box sx={{ color: 'text.secondary', mb: 2 }}>
+              {(error as Error)?.message || 'Unknown error'}
+            </Box>
+            <Box
+              component="button"
+              onClick={() => router.push('/dashboard')}
+              sx={{
+                px: 3,
+                py: 1,
+                border: '1px solid',
+                borderColor: 'primary.main',
+                borderRadius: 1,
+                bgcolor: 'transparent',
+                color: 'primary.main',
+                cursor: 'pointer',
+                '&:hover': { bgcolor: 'rgba(155, 89, 182, 0.1)' },
+              }}
+            >
+              Back to Server List
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+    );
+  }
 
   if (authLoading || guildLoading || !guildData) {
     return (

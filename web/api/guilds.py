@@ -70,9 +70,11 @@ async def get_guilds(
 
     # Botが参加しているギルドIDセット
     bot_guild_ids = {g.id for g in bot.guilds}
+    logger.info(f"Bot guild IDs: {bot_guild_ids}")
 
     guilds = []
     for guild in user_guilds:
+        logger.info(f"User guild: id={guild.id}, name={guild.name}, manage={guild.has_manage_guild}, bot_joined={guild.id in bot_guild_ids}")
         if guild.has_manage_guild:
             guilds.append(GuildListItem(
                 id=guild.id,

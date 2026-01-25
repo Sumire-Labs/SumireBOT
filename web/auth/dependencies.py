@@ -129,12 +129,16 @@ async def require_guild_admin(
 
     ユーザーがギルドの管理権限を持っていない場合は403エラーを返す
     """
+    logger.info(f"require_guild_admin: guild_id={guild_id}, type={type(guild_id)}")
+    logger.info(f"Bot guilds: {[g.id for g in bot.guilds]}")
+
     guild = bot.get_guild(guild_id)
 
     if not guild:
+        logger.warning(f"Guild not found: {guild_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="サーバーが見つかりません",
+            detail=f"サーバーが見つかりません (ID: {guild_id})",
         )
 
     member = guild.get_member(user.id)
