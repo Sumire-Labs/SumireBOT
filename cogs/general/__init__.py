@@ -11,12 +11,13 @@ from utils.config import Config
 from .ping import PingMixin
 from .avatar import AvatarMixin
 from .profile import ProfileMixin
+from .roll import RollMixin
 
 if TYPE_CHECKING:
     from bot import SumireBot
 
 
-class General(PingMixin, AvatarMixin, ProfileMixin, commands.Cog):
+class General(PingMixin, AvatarMixin, ProfileMixin, RollMixin, commands.Cog):
     """一般コマンド"""
 
     def __init__(self, bot: SumireBot) -> None:
