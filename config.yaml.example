@@ -56,6 +56,11 @@ ticket:
     - "リクエスト"
     - "その他"
 
+# URL短縮設定 (X.gd)
+shorturl:
+  # X.gd APIキー (https://x.gd/view/developer で取得)
+  api_key: ""
+
 # 音楽プレイヤー設定
 music:
   # Lavalink サーバー設定

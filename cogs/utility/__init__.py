@@ -16,12 +16,13 @@ from .translate import TranslateMixin
 from .logger import LoggerMixin
 from .confess import ConfessMixin
 from .context_menus import ContextMenusMixin
+from .shorturl import ShortUrlMixin
 
 if TYPE_CHECKING:
     from bot import SumireBot
 
 
-class Utility(TranslateMixin, LoggerMixin, ConfessMixin, ContextMenusMixin, commands.Cog):
+class Utility(TranslateMixin, LoggerMixin, ConfessMixin, ContextMenusMixin, ShortUrlMixin, commands.Cog):
     """ユーティリティ機能"""
 
     def __init__(self, bot: SumireBot) -> None:
