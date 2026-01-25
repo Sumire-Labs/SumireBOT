@@ -46,7 +46,7 @@ PLATFORM_FIXES = {
         "patterns": [
             r"https?://(?:www\.)?medal\.tv/[\w/-]+/clips/[\w-]+(?:\?[^\s]*)?",
         ],
-        "replacements": [],  # Medal.tvはそのままでも埋め込み表示される
+        "replacements": [],
     },
 }
 
