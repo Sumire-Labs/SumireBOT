@@ -168,3 +168,54 @@ class Config:
     def spotify_client_secret(self) -> str:
         """Spotify Client Secret"""
         return self.get("music", "spotify", "client_secret", default="")
+
+    # Web Dashboard設定
+    @property
+    def web_enabled(self) -> bool:
+        """Web Dashboardを有効にするか"""
+        return self.get("web", "enabled", default=False)
+
+    @property
+    def web_host(self) -> str:
+        """Webサーバーのホスト"""
+        return self.get("web", "host", default="0.0.0.0")
+
+    @property
+    def web_port(self) -> int:
+        """Webサーバーのポート"""
+        return self.get("web", "port", default=8080)
+
+    @property
+    def web_base_url(self) -> str:
+        """外部からアクセス可能なURL"""
+        return self.get("web", "base_url", default="http://localhost:8080")
+
+    @property
+    def web_secret_key(self) -> str:
+        """セッション暗号化キー"""
+        return self.get("web", "secret_key", default="")
+
+    @property
+    def oauth_client_id(self) -> str:
+        """Discord OAuth2 Client ID"""
+        return self.get("web", "oauth", "client_id", default="")
+
+    @property
+    def oauth_client_secret(self) -> str:
+        """Discord OAuth2 Client Secret"""
+        return self.get("web", "oauth", "client_secret", default="")
+
+    @property
+    def web_cors_origins(self) -> list[str]:
+        """CORS許可オリジン"""
+        return self.get("web", "cors", "allowed_origins", default=["http://localhost:3000"])
+
+    @property
+    def web_rate_limit(self) -> int:
+        """レート制限（リクエスト/分/ユーザー）"""
+        return self.get("web", "rate_limit", default=60)
+
+    @property
+    def web_session_max_age(self) -> int:
+        """セッション有効期限（秒）"""
+        return self.get("web", "session", "max_age", default=604800)

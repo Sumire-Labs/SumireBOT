@@ -75,3 +75,36 @@ music:
   spotify:
     client_id: ""
     client_secret: ""
+
+# Web Dashboard設定
+web:
+  # ダッシュボードを有効にするか
+  enabled: false
+  # サーバーバインド設定
+  host: "0.0.0.0"
+  port: 8080
+  # 外部からアクセス可能なURL（OAuthコールバック用）
+  base_url: "http://localhost:8080"
+  # セッション暗号化キー（生成: python -c "import secrets; print(secrets.token_hex(32))"）
+  secret_key: ""
+
+  # Discord OAuth2設定
+  oauth:
+    # BotのアプリケーションID（Discord Developer Portal）
+    client_id: ""
+    # クライアントシークレット（Discord Developer Portal）
+    client_secret: ""
+
+  # CORS設定
+  cors:
+    # 許可するオリジン（開発時はNext.js dev server）
+    allowed_origins:
+      - "http://localhost:3000"
+
+  # レート制限（1分あたりのリクエスト数/ユーザー）
+  rate_limit: 60
+
+  # セッション設定
+  session:
+    # セッションの有効期限（秒）- デフォルト7日
+    max_age: 604800

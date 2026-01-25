@@ -250,6 +250,18 @@ class DatabaseCore:
                 UNIQUE(guild_id, user_id, word)
             );
 
+            -- Webセッション
+            CREATE TABLE IF NOT EXISTS web_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                session_token TEXT UNIQUE NOT NULL,
+                access_token TEXT NOT NULL,
+                refresh_token TEXT,
+                expires_at TIMESTAMP NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
             -- パフォーマンス向上用インデックス
             CREATE INDEX IF NOT EXISTS idx_user_levels_guild_user ON user_levels(guild_id, user_id);
             CREATE INDEX IF NOT EXISTS idx_user_levels_ranking ON user_levels(guild_id, level DESC, xp DESC);
@@ -258,6 +270,8 @@ class DatabaseCore:
             CREATE INDEX IF NOT EXISTS idx_polls_active ON polls(ended, end_time);
             CREATE INDEX IF NOT EXISTS idx_star_messages_guild ON star_messages(guild_id, star_count DESC);
             CREATE INDEX IF NOT EXISTS idx_wordcounter_guild_word ON wordcounter_counts(guild_id, word, count DESC);
+            CREATE INDEX IF NOT EXISTS idx_web_sessions_user ON web_sessions(user_id);
+            CREATE INDEX IF NOT EXISTS idx_web_sessions_token ON web_sessions(session_token);
         """)
         await self._db.commit()
 

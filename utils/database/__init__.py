@@ -21,6 +21,7 @@ from .poll import PollMixin
 from .star import StarMixin
 from .teamshuffle import TeamShuffleMixin
 from .wordcounter import WordCounterMixin
+from .web_session import WebSessionMixin
 
 
 class Database(
@@ -36,6 +37,7 @@ class Database(
     StarMixin,
     TeamShuffleMixin,
     WordCounterMixin,
+    WebSessionMixin,
     DatabaseCore,  # 最後に配置（MRO対策）
 ):
     """

@@ -5,6 +5,7 @@ Discord.py 2.6.4を使用した多機能Discord BOT
 from __future__ import annotations
 
 import asyncio
+from typing import Optional
 
 import discord
 from discord.ext import commands
@@ -37,6 +38,10 @@ class SumireBot(commands.Bot):
         self.logger = get_logger("sumire")
         self.status_manager = StatusManager(self)
 
+        # Web Dashboard
+        self.web_app = None
+        self.web_server: Optional[asyncio.Task] = None
+
     async def setup_hook(self) -> None:
         """Bot起動時の初期化処理"""
         # データベース接続
@@ -56,6 +61,12 @@ class SumireBot(commands.Bot):
         await self.tree.sync()
         self.logger.info("スラッシュコマンドを同期しました")
 
+        # Web Dashboard初期化
+        if self.config.web_enabled:
+            from web import create_app
+            self.web_app = create_app(self)
+            self.logger.info("Web Dashboardを初期化しました")
+
     async def on_ready(self) -> None:
         """Bot準備完了時"""
         self.logger.info(f"ログイン完了: {self.user} (ID: {self.user.id})")
@@ -63,6 +74,26 @@ class SumireBot(commands.Bot):
 
         # ステータス更新タスクを開始
         self.status_manager.start()
+
+        # Web Dashboardを起動
+        if self.config.web_enabled and self.web_app and self.web_server is None:
+            self.web_server = asyncio.create_task(self._start_web_server())
+            self.logger.info(
+                f"Web Dashboard起動: http://{self.config.web_host}:{self.config.web_port}"
+            )
+
+    async def _start_web_server(self) -> None:
+        """Webサーバーを起動"""
+        import uvicorn
+
+        config = uvicorn.Config(
+            self.web_app,
+            host=self.config.web_host,
+            port=self.config.web_port,
+            log_level="warning",  # uvicornのログは抑制
+        )
+        server = uvicorn.Server(config)
+        await server.serve()
 
     async def on_guild_join(self, guild: discord.Guild) -> None:
         """サーバー参加時"""
@@ -76,6 +107,16 @@ class SumireBot(commands.Bot):
     async def close(self) -> None:
         """Bot終了時のクリーンアップ"""
         self.logger.info("Botを終了します...")
+
+        # Web Dashboardを停止
+        if self.web_server:
+            self.web_server.cancel()
+            try:
+                await self.web_server
+            except asyncio.CancelledError:
+                pass
+            self.logger.info("Web Dashboardを停止しました")
+
         self.status_manager.stop()
         await self.db.close()
         await super().close()
