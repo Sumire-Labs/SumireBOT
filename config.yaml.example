@@ -95,6 +95,11 @@ web:
     # クライアントシークレット（Discord Developer Portal）
     client_secret: ""
 
+  # フロントエンドURL（開発時のみ。本番では空にする）
+  # 開発時: Next.js dev serverのURL
+  # 本番時: 空にするとbase_urlが使用される
+  frontend_url: "http://localhost:3000"
+
   # CORS設定
   cors:
     # 許可するオリジン（開発時はNext.js dev server）
