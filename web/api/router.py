@@ -30,10 +30,10 @@ async def bot_info():
 from web.api.auth import auth_router
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 
-# ギルドルーター（Phase 3で実装）
-# from web.api.guilds import guilds_router
-# api_router.include_router(guilds_router, prefix="/guilds", tags=["guilds"])
+# ギルドルーター
+from web.api.guilds import guilds_router
+api_router.include_router(guilds_router, prefix="/guilds", tags=["guilds"])
 
-# ランキングルーター（Phase 3で実装）
-# from web.api.leaderboards import leaderboards_router
-# api_router.include_router(leaderboards_router, prefix="/guilds/{guild_id}/leaderboard", tags=["leaderboards"])
+# ランキングルーター
+from web.api.leaderboards import leaderboards_router
+api_router.include_router(leaderboards_router, prefix="/guilds/{guild_id}/leaderboard", tags=["leaderboards"])

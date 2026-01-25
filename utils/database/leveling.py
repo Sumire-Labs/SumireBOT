@@ -288,3 +288,57 @@ class LevelingMixin:
                 reactions_received = reactions_received + 1
         """, (guild_id, user_id))
         await self._commit()
+
+    # ==================== Web API用メソッド ====================
+
+    async def set_leveling_ignored_channels(self, guild_id: int, channel_ids: list[int]) -> None:
+        """レベリングの除外チャンネルを一括設定"""
+        await self._db.execute("""
+            INSERT INTO leveling_settings (guild_id, ignored_channels)
+            VALUES (?, ?)
+            ON CONFLICT(guild_id) DO UPDATE SET
+                ignored_channels = excluded.ignored_channels
+        """, (guild_id, json.dumps(channel_ids)))
+        await self._commit()
+
+    async def get_level_leaderboard(self, guild_id: int, limit: int = 50, offset: int = 0) -> list[dict]:
+        """レベルランキングを取得（ページネーション対応）"""
+        async with self._db.execute("""
+            SELECT user_id, xp, level FROM user_levels
+            WHERE guild_id = ?
+            ORDER BY level DESC, xp DESC
+            LIMIT ? OFFSET ?
+        """, (guild_id, limit, offset)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def get_level_user_count(self, guild_id: int) -> int:
+        """レベルデータを持つユーザー数を取得"""
+        async with self._db.execute(
+            "SELECT COUNT(*) as count FROM user_levels WHERE guild_id = ?",
+            (guild_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row["count"] if row else 0
+
+    async def get_reaction_given_leaderboard(self, guild_id: int, limit: int = 50) -> list[dict]:
+        """リアクションを与えた数ランキング"""
+        async with self._db.execute("""
+            SELECT user_id, reactions_given, reactions_received FROM user_levels
+            WHERE guild_id = ? AND reactions_given > 0
+            ORDER BY reactions_given DESC
+            LIMIT ?
+        """, (guild_id, limit)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def get_reaction_received_leaderboard(self, guild_id: int, limit: int = 50) -> list[dict]:
+        """リアクションを受けた数ランキング"""
+        async with self._db.execute("""
+            SELECT user_id, reactions_given, reactions_received FROM user_levels
+            WHERE guild_id = ? AND reactions_received > 0
+            ORDER BY reactions_received DESC
+            LIMIT ?
+        """, (guild_id, limit)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]

@@ -273,3 +273,54 @@ class StarMixin:
             (message_id,)
         )
         await self._commit()
+
+    # ==================== Web API用メソッド ====================
+
+    async def set_star_target_channels(self, guild_id: int, channel_ids: list[int]) -> None:
+        """スター対象チャンネルを一括設定"""
+        await self._db.execute("""
+            INSERT INTO star_settings (guild_id, target_channels)
+            VALUES (?, ?)
+            ON CONFLICT(guild_id) DO UPDATE SET
+                target_channels = excluded.target_channels
+        """, (guild_id, json.dumps(channel_ids)))
+        await self._commit()
+
+    async def set_star_weekly_report_channel(self, guild_id: int, channel_id: Optional[int]) -> None:
+        """週間レポートチャンネルを設定（set_weekly_report_channelのエイリアス）"""
+        await self.set_weekly_report_channel(guild_id, channel_id)
+
+    async def get_star_user_leaderboard(self, guild_id: int, limit: int = 50) -> list[dict]:
+        """ユーザー別スターランキング"""
+        async with self._db.execute("""
+            SELECT author_id, SUM(star_count) as total_stars, COUNT(*) as message_count
+            FROM star_messages
+            WHERE guild_id = ?
+            GROUP BY author_id
+            HAVING total_stars > 0
+            ORDER BY total_stars DESC
+            LIMIT ?
+        """, (guild_id, limit)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def get_star_message_leaderboard(self, guild_id: int, limit: int = 50) -> list[dict]:
+        """メッセージ別スターランキング"""
+        async with self._db.execute("""
+            SELECT message_id, channel_id, author_id, star_count
+            FROM star_messages
+            WHERE guild_id = ? AND star_count > 0
+            ORDER BY star_count DESC
+            LIMIT ?
+        """, (guild_id, limit)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def get_star_message_count(self, guild_id: int) -> int:
+        """スター付きメッセージの総数"""
+        async with self._db.execute(
+            "SELECT COUNT(*) as count FROM star_messages WHERE guild_id = ? AND star_count > 0",
+            (guild_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row["count"] if row else 0
