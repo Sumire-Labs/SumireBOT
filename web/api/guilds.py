@@ -145,16 +145,16 @@ async def _get_guild_settings(db: Database, guild_id: int) -> GuildSettings:
     # レベリング設定
     leveling_data = await db.get_leveling_settings(guild_id)
     leveling = LevelingSettings(
-        enabled=bool(leveling_data.get("enabled", True)),
-        ignored_channels=_int_list_to_str_list(json.loads(leveling_data.get("ignored_channels", "[]"))),
+        enabled=bool(leveling_data.get("enabled", True)) if leveling_data else True,
+        ignored_channels=_int_list_to_str_list(json.loads(leveling_data.get("ignored_channels", "[]"))) if leveling_data else [],
     )
 
     # スター設定
     star_data = await db.get_star_settings(guild_id)
     star = StarSettings(
-        enabled=bool(star_data.get("enabled", True)),
-        target_channels=_int_list_to_str_list(json.loads(star_data.get("target_channels", "[]"))),
-        weekly_report_channel_id=_int_to_str(star_data.get("weekly_report_channel_id")),
+        enabled=bool(star_data.get("enabled", True)) if star_data else True,
+        target_channels=_int_list_to_str_list(json.loads(star_data.get("target_channels", "[]"))) if star_data else [],
+        weekly_report_channel_id=_int_to_str(star_data.get("weekly_report_channel_id")) if star_data else None,
     )
 
     # 単語カウンター設定
@@ -230,8 +230,8 @@ async def update_leveling_settings(
 
     settings = await db.get_leveling_settings(guild.id)
     return LevelingSettings(
-        enabled=bool(settings.get("enabled", True)),
-        ignored_channels=_int_list_to_str_list(json.loads(settings.get("ignored_channels", "[]"))),
+        enabled=bool(settings.get("enabled", True)) if settings else True,
+        ignored_channels=_int_list_to_str_list(json.loads(settings.get("ignored_channels", "[]"))) if settings else [],
     )
 
 
@@ -253,9 +253,9 @@ async def update_star_settings(
 
     settings = await db.get_star_settings(guild.id)
     return StarSettings(
-        enabled=bool(settings.get("enabled", True)),
-        target_channels=_int_list_to_str_list(json.loads(settings.get("target_channels", "[]"))),
-        weekly_report_channel_id=_int_to_str(settings.get("weekly_report_channel_id")),
+        enabled=bool(settings.get("enabled", True)) if settings else True,
+        target_channels=_int_list_to_str_list(json.loads(settings.get("target_channels", "[]"))) if settings else [],
+        weekly_report_channel_id=_int_to_str(settings.get("weekly_report_channel_id")) if settings else None,
     )
 
 
