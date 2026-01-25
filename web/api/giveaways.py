@@ -44,8 +44,8 @@ async def list_giveaways(
     for g in giveaways:
         item = GiveawayListItem(
             id=g["id"],
-            channel_id=g["channel_id"],
-            message_id=g["message_id"],
+            channel_id=str(g["channel_id"]),  # Convert to string
+            message_id=str(g["message_id"]),  # Convert to string
             prize=g["prize"],
             winner_count=g["winner_count"],
             participant_count=len(g["participants"]),
@@ -84,15 +84,15 @@ async def get_giveaway(
 
     return GiveawayResponse(
         id=giveaway["id"],
-        guild_id=giveaway["guild_id"],
-        channel_id=giveaway["channel_id"],
-        message_id=giveaway["message_id"],
-        host_id=giveaway["host_id"],
+        guild_id=str(giveaway["guild_id"]),  # Convert to string
+        channel_id=str(giveaway["channel_id"]),  # Convert to string
+        message_id=str(giveaway["message_id"]),  # Convert to string
+        host_id=str(giveaway["host_id"]),  # Convert to string
         prize=giveaway["prize"],
         winner_count=giveaway["winner_count"],
         end_time=datetime.fromisoformat(giveaway["end_time"]),
-        participants=giveaway["participants"],
-        winners=giveaway["winners"],
+        participants=[str(p) for p in giveaway["participants"]],  # Convert to strings
+        winners=[str(w) for w in giveaway["winners"]],  # Convert to strings
         ended=bool(giveaway["ended"]),
         created_at=datetime.fromisoformat(giveaway["created_at"]) if giveaway.get("created_at") else datetime.utcnow(),
     )
@@ -106,8 +106,8 @@ async def create_giveaway(
     db: Database = Depends(get_db),
 ) -> GiveawayResponse:
     """Giveawayを作成"""
-    # チャンネルを取得
-    channel = guild.get_channel(data.channel_id)
+    # チャンネルを取得 (string ID を int に変換)
+    channel = guild.get_channel(int(data.channel_id))
     if not channel or not isinstance(channel, discord.TextChannel):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -161,10 +161,10 @@ async def create_giveaway(
 
     return GiveawayResponse(
         id=giveaway_id,
-        guild_id=guild.id,
-        channel_id=channel.id,
-        message_id=message.id,
-        host_id=bot.user.id,
+        guild_id=str(guild.id),  # Convert to string
+        channel_id=str(channel.id),  # Convert to string
+        message_id=str(message.id),  # Convert to string
+        host_id=str(bot.user.id),  # Convert to string
         prize=data.prize,
         winner_count=data.winner_count,
         end_time=end_time,
@@ -285,7 +285,7 @@ async def end_giveaway(
     return GiveawayEndResponse(
         id=giveaway_id,
         prize=giveaway["prize"],
-        winners=winners_ids,
+        winners=[str(w) for w in winners_ids],  # Convert to strings
         winner_names=winner_names,
     )
 
@@ -363,6 +363,6 @@ async def reroll_giveaway(
     return GiveawayRerollResponse(
         id=giveaway_id,
         prize=giveaway["prize"],
-        new_winners=new_winners_ids,
+        new_winners=[str(w) for w in new_winners_ids],  # Convert to strings
         new_winner_names=new_winner_names,
     )

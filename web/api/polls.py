@@ -53,7 +53,7 @@ def _calculate_vote_results(options: list[str], votes: dict[str, list[int]]) -> 
             option=option,
             count=count,
             percentage=percentage,
-            voters=voters,
+            voters=[str(v) for v in voters],  # Convert to strings
         ))
 
     return results
@@ -82,8 +82,8 @@ async def list_polls(
 
         item = PollListItem(
             id=p["id"],
-            channel_id=p["channel_id"],
-            message_id=p["message_id"],
+            channel_id=str(p["channel_id"]),  # Convert to string
+            message_id=str(p["message_id"]),  # Convert to string
             question=p["question"],
             option_count=len(p["options"]),
             total_votes=total_votes,
@@ -126,23 +126,22 @@ async def get_poll(
         end_time = datetime.fromisoformat(poll["end_time"])
 
     # votesの形式を変換（user_id -> [option_indices] から option -> [user_ids]へ）
-    votes_by_option: dict[str, list[int]] = {}
+    votes_by_option: dict[str, list[str]] = {}
     for option in poll["options"]:
         votes_by_option[option] = []
 
     for user_id_str, user_votes in poll["votes"].items():
-        user_id = int(user_id_str)
         for option_idx in user_votes:
             if 0 <= option_idx < len(poll["options"]):
                 option = poll["options"][option_idx]
-                votes_by_option[option].append(user_id)
+                votes_by_option[option].append(user_id_str)  # Keep as string
 
     return PollResponse(
         id=poll["id"],
-        guild_id=poll["guild_id"],
-        channel_id=poll["channel_id"],
-        message_id=poll["message_id"],
-        author_id=poll["author_id"],
+        guild_id=str(poll["guild_id"]),  # Convert to string
+        channel_id=str(poll["channel_id"]),  # Convert to string
+        message_id=str(poll["message_id"]),  # Convert to string
+        author_id=str(poll["author_id"]),  # Convert to string
         question=poll["question"],
         options=poll["options"],
         votes=votes_by_option,
@@ -188,8 +187,8 @@ async def create_poll(
     db: Database = Depends(get_db),
 ) -> PollResponse:
     """Pollを作成"""
-    # チャンネルを取得
-    channel = guild.get_channel(data.channel_id)
+    # チャンネルを取得 (string ID を int に変換)
+    channel = guild.get_channel(int(data.channel_id))
     if not channel or not isinstance(channel, discord.TextChannel):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -245,14 +244,14 @@ async def create_poll(
     logger.info(f"Poll created via Web API: {data.question} in {guild.name}")
 
     # votesの形式を作成
-    votes_by_option: dict[str, list[int]] = {option: [] for option in data.options}
+    votes_by_option: dict[str, list[str]] = {option: [] for option in data.options}
 
     return PollResponse(
         id=poll_id,
-        guild_id=guild.id,
-        channel_id=channel.id,
-        message_id=message.id,
-        author_id=bot.user.id,
+        guild_id=str(guild.id),  # Convert to string
+        channel_id=str(channel.id),  # Convert to string
+        message_id=str(message.id),  # Convert to string
+        author_id=str(bot.user.id),  # Convert to string
         question=data.question,
         options=data.options,
         votes=votes_by_option,

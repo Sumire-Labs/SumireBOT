@@ -67,7 +67,7 @@ async def get_level_leaderboard(
         username, display_name, avatar_url = _get_user_info(bot, guild, row["user_id"])
         entries.append(LevelRankEntry(
             rank=offset + i + 1,
-            user_id=row["user_id"],
+            user_id=str(row["user_id"]),  # Convert to string
             username=username,
             display_name=display_name,
             avatar_url=avatar_url,
@@ -98,7 +98,7 @@ async def get_vc_leaderboard(
         username, display_name, avatar_url = _get_user_info(bot, guild, row["user_id"])
         entries.append(VCRankEntry(
             rank=offset + i + 1,
-            user_id=row["user_id"],
+            user_id=str(row["user_id"]),  # Convert to string
             username=username,
             display_name=display_name,
             avatar_url=avatar_url,
@@ -126,7 +126,7 @@ async def get_star_leaderboard(
         username, display_name, avatar_url = _get_user_info(bot, guild, row["author_id"])
         by_user.append(StarUserRankEntry(
             rank=i + 1,
-            user_id=row["author_id"],
+            user_id=str(row["author_id"]),  # Convert to string
             username=username,
             display_name=display_name,
             avatar_url=avatar_url,
@@ -141,9 +141,9 @@ async def get_star_leaderboard(
         username, _, _ = _get_user_info(bot, guild, row["author_id"])
         by_message.append(StarMessageRankEntry(
             rank=i + 1,
-            message_id=row["message_id"],
-            channel_id=row["channel_id"],
-            author_id=row["author_id"],
+            message_id=str(row["message_id"]),  # Convert to string
+            channel_id=str(row["channel_id"]),  # Convert to string
+            author_id=str(row["author_id"]),  # Convert to string
             author_name=username,
             star_count=row["star_count"],
         ))
@@ -188,7 +188,7 @@ async def get_word_leaderboard(
         username, display_name, avatar_url = _get_user_info(bot, guild, row["user_id"])
         entries.append(WordCountRankEntry(
             rank=i + 1,
-            user_id=row["user_id"],
+            user_id=str(row["user_id"]),  # Convert to string
             username=username,
             display_name=display_name,
             avatar_url=avatar_url,
@@ -220,7 +220,7 @@ async def get_reaction_leaderboard(
         username, display_name, avatar_url = _get_user_info(bot, guild, row["user_id"])
         by_given.append(ReactionRankEntry(
             rank=i + 1,
-            user_id=row["user_id"],
+            user_id=str(row["user_id"]),  # Convert to string
             username=username,
             display_name=display_name,
             avatar_url=avatar_url,
@@ -235,7 +235,7 @@ async def get_reaction_leaderboard(
         username, display_name, avatar_url = _get_user_info(bot, guild, row["user_id"])
         by_received.append(ReactionRankEntry(
             rank=i + 1,
-            user_id=row["user_id"],
+            user_id=str(row["user_id"]),  # Convert to string
             username=username,
             display_name=display_name,
             avatar_url=avatar_url,

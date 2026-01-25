@@ -17,7 +17,7 @@ class PollOption(BaseModel):
 
 class PollCreate(BaseModel):
     """Poll作成リクエスト"""
-    channel_id: int = Field(..., description="投稿先チャンネルID")
+    channel_id: str = Field(..., description="投稿先チャンネルID")  # Discord Snowflake ID
     question: str = Field(..., min_length=1, max_length=300, description="質問文")
     options: list[str] = Field(..., min_length=2, max_length=10, description="選択肢（2〜10個）")
     multi_select: bool = Field(default=False, description="複数選択を許可")
@@ -29,19 +29,19 @@ class PollVoteResult(BaseModel):
     option: str
     count: int
     percentage: float
-    voters: list[int]
+    voters: list[str]  # Discord Snowflake IDs
 
 
 class PollResponse(BaseModel):
     """Poll情報レスポンス"""
     id: int
-    guild_id: int
-    channel_id: int
-    message_id: int
-    author_id: int
+    guild_id: str  # Discord Snowflake ID
+    channel_id: str  # Discord Snowflake ID
+    message_id: str  # Discord Snowflake ID
+    author_id: str  # Discord Snowflake ID
     question: str
     options: list[str]
-    votes: dict[str, list[int]]  # option -> user_ids
+    votes: dict[str, list[str]]  # option -> user_ids (Snowflake IDs)
     multi_select: bool
     end_time: Optional[datetime]
     ended: bool
@@ -55,8 +55,8 @@ class PollResponse(BaseModel):
 class PollListItem(BaseModel):
     """Poll一覧アイテム"""
     id: int
-    channel_id: int
-    message_id: int
+    channel_id: str  # Discord Snowflake ID
+    message_id: str  # Discord Snowflake ID
     question: str
     option_count: int
     total_votes: int

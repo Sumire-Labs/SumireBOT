@@ -11,7 +11,7 @@ from pydantic import BaseModel
 class UserRankInfo(BaseModel):
     """ユーザーランキング情報（共通）"""
     rank: int
-    user_id: int
+    user_id: str  # Discord Snowflake ID (string to avoid JS precision loss)
     username: str
     display_name: str
     avatar_url: Optional[str] = None
@@ -57,9 +57,9 @@ class StarUserRankEntry(UserRankInfo):
 class StarMessageRankEntry(BaseModel):
     """スターランキング（メッセージ別）エントリー"""
     rank: int
-    message_id: int
-    channel_id: int
-    author_id: int
+    message_id: str  # Discord Snowflake ID
+    channel_id: str  # Discord Snowflake ID
+    author_id: str  # Discord Snowflake ID
     author_name: str
     star_count: int
 
