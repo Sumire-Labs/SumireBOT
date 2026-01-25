@@ -230,6 +230,26 @@ class DatabaseCore:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
+            -- 単語カウンター設定（サーバーごと）
+            CREATE TABLE IF NOT EXISTS wordcounter_settings (
+                guild_id INTEGER PRIMARY KEY,
+                enabled INTEGER DEFAULT 1,
+                words TEXT DEFAULT '[]',
+                milestones TEXT DEFAULT '[10,50,100,200,300,500,1000]'
+            );
+
+            -- 単語カウント（ユーザー・単語ごと）
+            CREATE TABLE IF NOT EXISTS wordcounter_counts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                word TEXT NOT NULL,
+                count INTEGER DEFAULT 0,
+                last_milestone INTEGER DEFAULT 0,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(guild_id, user_id, word)
+            );
+
             -- パフォーマンス向上用インデックス
             CREATE INDEX IF NOT EXISTS idx_user_levels_guild_user ON user_levels(guild_id, user_id);
             CREATE INDEX IF NOT EXISTS idx_user_levels_ranking ON user_levels(guild_id, level DESC, xp DESC);
@@ -237,6 +257,7 @@ class DatabaseCore:
             CREATE INDEX IF NOT EXISTS idx_giveaways_active ON giveaways(ended, end_time);
             CREATE INDEX IF NOT EXISTS idx_polls_active ON polls(ended, end_time);
             CREATE INDEX IF NOT EXISTS idx_star_messages_guild ON star_messages(guild_id, star_count DESC);
+            CREATE INDEX IF NOT EXISTS idx_wordcounter_guild_word ON wordcounter_counts(guild_id, word, count DESC);
         """)
         await self._db.commit()
 

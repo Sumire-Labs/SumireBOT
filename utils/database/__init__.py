@@ -20,6 +20,7 @@ from .giveaway import GiveawayMixin
 from .poll import PollMixin
 from .star import StarMixin
 from .teamshuffle import TeamShuffleMixin
+from .wordcounter import WordCounterMixin
 
 
 class Database(
@@ -34,6 +35,7 @@ class Database(
     PollMixin,
     StarMixin,
     TeamShuffleMixin,
+    WordCounterMixin,
     DatabaseCore,  # 最後に配置（MRO対策）
 ):
     """
