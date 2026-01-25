@@ -3,6 +3,8 @@ Star イベントリスナー
 """
 from __future__ import annotations
 
+import re
+
 import discord
 from discord.ext import commands
 
@@ -12,6 +14,11 @@ logger = get_logger("sumire.cogs.star.events")
 
 # スター絵文字
 STAR_EMOJI = "⭐"
+
+# クリップサイト等のURLパターン（埋め込みがなくてもスター対象にする）
+CLIP_URL_PATTERNS = [
+    r"https?://(?:www\.)?medal\.tv/[\w/-]+/clips/[\w-]+(?:\?[^\s]*)?",
+]
 
 
 class StarEventsMixin:
@@ -36,8 +43,13 @@ class StarEventsMixin:
         if message.channel.id not in target_channels:
             return
 
-        # メディア（画像・動画・埋め込み）があるメッセージのみ対象
-        if not message.attachments and not message.embeds:
+        # メディア（画像・動画・埋め込み）またはクリップURLがあるメッセージのみ対象
+        has_media = bool(message.attachments or message.embeds)
+        has_clip_url = any(
+            re.search(pattern, message.content)
+            for pattern in CLIP_URL_PATTERNS
+        )
+        if not has_media and not has_clip_url:
             return
 
         try:
