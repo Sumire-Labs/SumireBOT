@@ -1,11 +1,10 @@
 // ==================== 認証関連 ====================
 
 export interface User {
-  id: string;
+  id: number;
   username: string;
-  discriminator: string;
-  avatar_url: string | null;
-  global_name: string | null;
+  display_name: string;
+  avatar_url: string;
 }
 
 export interface AuthCheckResponse {

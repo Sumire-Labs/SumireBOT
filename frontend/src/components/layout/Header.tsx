@@ -105,7 +105,7 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
             <IconButton onClick={handleMenuOpen} sx={{ p: 0 }}>
               <Avatar
                 src={user.avatar_url || undefined}
-                alt={user.global_name || user.username}
+                alt={user.display_name || user.username}
                 sx={{ width: 36, height: 36 }}
               />
             </IconButton>
@@ -130,7 +130,7 @@ export default function Header({ onMenuClick, showMenuButton = false }: HeaderPr
             >
               <Box sx={{ px: 2, py: 1 }}>
                 <Typography variant="subtitle1" fontWeight={600}>
-                  {user.global_name || user.username}
+                  {user.display_name || user.username}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   @{user.username}
