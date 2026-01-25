@@ -23,7 +23,8 @@ class StarSettingsView(ui.LayoutView):
         self,
         guild: discord.Guild,
         enabled: bool = True,
-        target_channels: list[int] = None
+        target_channels: list[int] = None,
+        weekly_report_channel_id: Optional[int] = None
     ) -> None:
         super().__init__(timeout=300)
         self.guild = guild
@@ -31,6 +32,7 @@ class StarSettingsView(ui.LayoutView):
         self.config = Config()
         self.enabled = enabled
         self.target_channels = target_channels or []
+        self.weekly_report_channel_id = weekly_report_channel_id
 
         self._build_ui()
 
@@ -52,6 +54,12 @@ class StarSettingsView(ui.LayoutView):
             container.add_item(ui.TextDisplay(f"**対象チャンネル:**\n{channels_text}"))
         else:
             container.add_item(ui.TextDisplay("**対象チャンネル:** なし"))
+
+        # 週間レポート設定
+        if self.weekly_report_channel_id:
+            container.add_item(ui.TextDisplay(f"**週間レポート:** <#{self.weekly_report_channel_id}>"))
+        else:
+            container.add_item(ui.TextDisplay("**週間レポート:** 無効"))
 
         container.add_item(ui.Separator())
 
@@ -79,14 +87,32 @@ class StarSettingsView(ui.LayoutView):
         channel_row.add_item(channel_select)
         container.add_item(channel_row)
 
+        # 週間レポートチャンネル選択
+        weekly_row = ui.ActionRow()
+        weekly_select = ui.ChannelSelect(
+            placeholder="週間レポート送信先を選択...",
+            channel_types=[discord.ChannelType.text],
+            custom_id="star:settings:weekly_channel"
+        )
+        weekly_row.add_item(weekly_select)
+        container.add_item(weekly_row)
+
+        # ボタン行
+        button_row = ui.ActionRow()
         if self.target_channels:
-            clear_row = ui.ActionRow()
-            clear_row.add_item(ui.Button(
+            button_row.add_item(ui.Button(
                 label="対象をすべて解除",
                 style=discord.ButtonStyle.secondary,
                 custom_id="star:settings:clear"
             ))
-            container.add_item(clear_row)
+        if self.weekly_report_channel_id:
+            button_row.add_item(ui.Button(
+                label="週間レポート解除",
+                style=discord.ButtonStyle.secondary,
+                custom_id="star:settings:weekly_clear"
+            ))
+        if button_row.children:
+            container.add_item(button_row)
 
         self.add_item(container)
 
@@ -105,6 +131,12 @@ class StarSettingsView(ui.LayoutView):
             return False
         elif custom_id == "star:settings:clear":
             await self._clear_channels(interaction)
+            return False
+        elif custom_id == "star:settings:weekly_channel":
+            await self._set_weekly_channel(interaction)
+            return False
+        elif custom_id == "star:settings:weekly_clear":
+            await self._clear_weekly_channel(interaction)
             return False
 
         return True
@@ -152,6 +184,36 @@ class StarSettingsView(ui.LayoutView):
         self.clear_items()
         self._build_ui()
         await interaction.edit_original_response(view=self)
+
+    async def _set_weekly_channel(self, interaction: discord.Interaction) -> None:
+        """週間レポートチャンネルを設定"""
+        await interaction.response.defer()
+
+        selected_channels = interaction.data.get("values", [])
+        if not selected_channels:
+            return
+
+        channel_id = int(selected_channels[0])
+        await self.db.set_weekly_report_channel(self.guild.id, channel_id)
+        self.weekly_report_channel_id = channel_id
+
+        self.clear_items()
+        self._build_ui()
+        await interaction.edit_original_response(view=self)
+
+        logger.info(f"週間レポートチャンネル設定: {self.guild.name} -> {channel_id}")
+
+    async def _clear_weekly_channel(self, interaction: discord.Interaction) -> None:
+        """週間レポートチャンネルを解除"""
+        await interaction.response.defer()
+        await self.db.set_weekly_report_channel(self.guild.id, None)
+        self.weekly_report_channel_id = None
+
+        self.clear_items()
+        self._build_ui()
+        await interaction.edit_original_response(view=self)
+
+        logger.info(f"週間レポートチャンネル解除: {self.guild.name}")
 
 
 class StarLeaderboardView(ui.LayoutView):

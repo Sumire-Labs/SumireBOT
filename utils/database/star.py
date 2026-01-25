@@ -79,6 +79,35 @@ class StarMixin:
         )
         await self._commit()
 
+    async def set_weekly_report_channel(self, guild_id: int, channel_id: Optional[int]) -> None:
+        """週間レポート送信チャンネルを設定"""
+        await self._db.execute("""
+            INSERT INTO star_settings (guild_id, weekly_report_channel_id)
+            VALUES (?, ?)
+            ON CONFLICT(guild_id) DO UPDATE SET
+                weekly_report_channel_id = excluded.weekly_report_channel_id
+        """, (guild_id, channel_id))
+        await self._commit()
+
+    async def update_weekly_report_last_sent(self, guild_id: int) -> None:
+        """週間レポート最終送信日時を更新"""
+        await self._db.execute("""
+            UPDATE star_settings SET weekly_report_last_sent = CURRENT_TIMESTAMP
+            WHERE guild_id = ?
+        """, (guild_id,))
+        await self._commit()
+
+    async def get_guilds_for_weekly_report(self) -> list[dict]:
+        """週間レポートを送信すべきサーバー一覧を取得"""
+        async with self._db.execute("""
+            SELECT guild_id, weekly_report_channel_id, weekly_report_last_sent
+            FROM star_settings
+            WHERE enabled = 1
+              AND weekly_report_channel_id IS NOT NULL
+        """) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
     # ==================== スターメッセージ ====================
 
     async def create_star_message(

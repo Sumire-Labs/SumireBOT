@@ -33,11 +33,13 @@ class StarSettingsMixin:
         settings = await self.db.get_star_settings(interaction.guild.id)
         enabled = bool(settings.get("enabled", 1)) if settings else True
         target_channels = settings.get("target_channels", []) if settings else []
+        weekly_report_channel_id = settings.get("weekly_report_channel_id") if settings else None
 
         view = StarSettingsView(
             guild=interaction.guild,
             enabled=enabled,
-            target_channels=target_channels
+            target_channels=target_channels,
+            weekly_report_channel_id=weekly_report_channel_id
         )
 
         await interaction.response.send_message(view=view, ephemeral=True)

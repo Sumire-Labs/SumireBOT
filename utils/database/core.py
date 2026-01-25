@@ -242,6 +242,7 @@ class DatabaseCore:
 
         # 既存テーブルにカラムを追加（マイグレーション）
         await self._migrate_user_levels_reactions()
+        await self._migrate_star_weekly_report()
 
     async def _migrate_user_levels_reactions(self) -> None:
         """user_levelsテーブルにリアクションカラムを追加（既存DB用マイグレーション）"""
@@ -256,6 +257,24 @@ class DatabaseCore:
         try:
             await self._db.execute(
                 "ALTER TABLE user_levels ADD COLUMN reactions_received INTEGER DEFAULT 0"
+            )
+            await self._db.commit()
+        except Exception:
+            pass
+
+    async def _migrate_star_weekly_report(self) -> None:
+        """star_settingsテーブルに週間レポート用カラムを追加（既存DB用マイグレーション）"""
+        try:
+            await self._db.execute(
+                "ALTER TABLE star_settings ADD COLUMN weekly_report_channel_id INTEGER"
+            )
+            await self._db.commit()
+        except Exception:
+            pass
+
+        try:
+            await self._db.execute(
+                "ALTER TABLE star_settings ADD COLUMN weekly_report_last_sent TIMESTAMP"
             )
             await self._db.commit()
         except Exception:

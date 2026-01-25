@@ -42,6 +42,12 @@ PLATFORM_FIXES = {
             ("x.com", "vxtwitter.com"),
         ],
     },
+    "medal": {
+        "patterns": [
+            r"https?://(?:www\.)?medal\.tv/[\w/-]+/clips/[\w-]+(?:\?[^\s]*)?",
+        ],
+        "replacements": [],  # Medal.tvはそのままでも埋め込み表示される
+    },
 }
 
 
@@ -62,8 +68,8 @@ def detect_and_fix_url(content: str) -> list[tuple[str, str, str]]:
                 for old, new in config["replacements"]:
                     fixed_url = fixed_url.replace(old, new)
 
-                if fixed_url != original_url:
-                    results.append((platform, original_url, fixed_url))
+                # 置換がなくても対応プラットフォームなら結果に追加
+                results.append((platform, original_url, fixed_url))
 
     return results
 

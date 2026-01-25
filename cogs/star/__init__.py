@@ -16,18 +16,34 @@ from .settings import StarSettingsMixin
 from .events import StarEventsMixin
 from .leaderboard import StarLeaderboardMixin
 from .info import StarInfoMixin
+from .weekly_report import StarWeeklyReportMixin
 
 if TYPE_CHECKING:
     from bot import SumireBot
 
 
-class Star(StarSettingsMixin, StarEventsMixin, StarLeaderboardMixin, StarInfoMixin, commands.Cog):
+class Star(
+    StarSettingsMixin,
+    StarEventsMixin,
+    StarLeaderboardMixin,
+    StarInfoMixin,
+    StarWeeklyReportMixin,
+    commands.Cog
+):
     """スター評価システム"""
 
     def __init__(self, bot: SumireBot) -> None:
         self.bot = bot
         self.config = Config()
         self.db = Database()
+
+    async def cog_load(self) -> None:
+        """Cog読み込み時"""
+        self.start_weekly_report_task()
+
+    async def cog_unload(self) -> None:
+        """Cog解除時"""
+        self.stop_weekly_report_task()
 
     async def cog_app_command_error(
         self,
