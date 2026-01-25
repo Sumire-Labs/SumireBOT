@@ -130,7 +130,7 @@ class WordCounterSettingsView(ui.LayoutView):
                 discord.SelectOption(label=word, value=word)
                 for word in self.words[:25]
             ]
-            select = ui.StringSelect(
+            select = ui.Select(
                 placeholder="削除する単語を選択...",
                 options=options,
                 custom_id="wordcounter:settings:remove"

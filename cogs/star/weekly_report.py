@@ -37,10 +37,12 @@ class StarWeeklyReportMixin:
                 channel_id = guild_data["weekly_report_channel_id"]
                 last_sent = guild_data.get("weekly_report_last_sent")
 
-                # 最終送信日時をチェック
+                # 最終送信日時をチェック（NULLの場合は初回設定なので送信しない）
                 should_send = False
                 if last_sent is None:
-                    should_send = True
+                    # 初回は送信せず、次回から7日後に送信
+                    await self.db.update_weekly_report_last_sent(guild_id)
+                    continue
                 else:
                     if isinstance(last_sent, str):
                         last_sent_dt = datetime.fromisoformat(last_sent)
