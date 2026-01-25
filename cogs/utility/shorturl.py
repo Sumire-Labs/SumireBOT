@@ -69,7 +69,7 @@ class ShortUrlMixin:
             return
 
         # APIキー取得
-        api_key = self.config.get("shorturl", {}).get("api_key", "")
+        api_key = self.config.get("shorturl", "api_key", default="")
         if not api_key:
             view = ShortUrlErrorView("URL短縮機能が設定されていません。管理者にお問い合わせください。")
             await interaction.response.send_message(view=view, ephemeral=True)
