@@ -140,20 +140,45 @@ def _int_list_to_str_list(values: list[int]) -> list[str]:
     return [str(v) for v in values]
 
 
+def _parse_channel_list(value) -> list[str]:
+    """Parse channel list from database (may be JSON string or list)"""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(v) for v in value]
+    if isinstance(value, str):
+        parsed = json.loads(value)
+        return [str(v) for v in parsed]
+    return []
+
+
+def _parse_json_list(value, default=None):
+    """Parse JSON list from database (may be JSON string or already a list)"""
+    if default is None:
+        default = []
+    if value is None:
+        return default
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        return json.loads(value)
+    return default
+
+
 async def _get_guild_settings(db: Database, guild_id: int) -> GuildSettings:
     """ギルドの全設定を取得"""
     # レベリング設定
     leveling_data = await db.get_leveling_settings(guild_id)
     leveling = LevelingSettings(
         enabled=bool(leveling_data.get("enabled", True)) if leveling_data else True,
-        ignored_channels=_int_list_to_str_list(json.loads(leveling_data.get("ignored_channels", "[]"))) if leveling_data else [],
+        ignored_channels=_parse_channel_list(leveling_data.get("ignored_channels")) if leveling_data else [],
     )
 
     # スター設定
     star_data = await db.get_star_settings(guild_id)
     star = StarSettings(
         enabled=bool(star_data.get("enabled", True)) if star_data else True,
-        target_channels=_int_list_to_str_list(json.loads(star_data.get("target_channels", "[]"))) if star_data else [],
+        target_channels=_parse_channel_list(star_data.get("target_channels")) if star_data else [],
         weekly_report_channel_id=_int_to_str(star_data.get("weekly_report_channel_id")) if star_data else None,
     )
 
@@ -161,8 +186,8 @@ async def _get_guild_settings(db: Database, guild_id: int) -> GuildSettings:
     wc_data = await db.get_wordcounter_settings(guild_id)
     wordcounter = WordCounterSettings(
         enabled=bool(wc_data.get("enabled", True)) if wc_data else True,
-        words=json.loads(wc_data.get("words", "[]")) if wc_data else [],
-        milestones=json.loads(wc_data.get("milestones", "[10,50,100,200,300,500,1000]")) if wc_data else [10, 50, 100, 200, 300, 500, 1000],
+        words=_parse_json_list(wc_data.get("words")) if wc_data else [],
+        milestones=_parse_json_list(wc_data.get("milestones"), [10, 50, 100, 200, 300, 500, 1000]) if wc_data else [10, 50, 100, 200, 300, 500, 1000],
     )
 
     # ロガー設定
@@ -231,7 +256,7 @@ async def update_leveling_settings(
     settings = await db.get_leveling_settings(guild.id)
     return LevelingSettings(
         enabled=bool(settings.get("enabled", True)) if settings else True,
-        ignored_channels=_int_list_to_str_list(json.loads(settings.get("ignored_channels", "[]"))) if settings else [],
+        ignored_channels=_parse_channel_list(settings.get("ignored_channels")) if settings else [],
     )
 
 
@@ -254,7 +279,7 @@ async def update_star_settings(
     settings = await db.get_star_settings(guild.id)
     return StarSettings(
         enabled=bool(settings.get("enabled", True)) if settings else True,
-        target_channels=_int_list_to_str_list(json.loads(settings.get("target_channels", "[]"))) if settings else [],
+        target_channels=_parse_channel_list(settings.get("target_channels")) if settings else [],
         weekly_report_channel_id=_int_to_str(settings.get("weekly_report_channel_id")) if settings else None,
     )
 
@@ -277,8 +302,8 @@ async def update_wordcounter_settings(
     settings = await db.get_wordcounter_settings(guild.id)
     return WordCounterSettings(
         enabled=bool(settings.get("enabled", True)) if settings else True,
-        words=json.loads(settings.get("words", "[]")) if settings else [],
-        milestones=json.loads(settings.get("milestones", "[10,50,100,200,300,500,1000]")) if settings else [10, 50, 100, 200, 300, 500, 1000],
+        words=_parse_json_list(settings.get("words")) if settings else [],
+        milestones=_parse_json_list(settings.get("milestones"), [10, 50, 100, 200, 300, 500, 1000]) if settings else [10, 50, 100, 200, 300, 500, 1000],
     )
 
 
