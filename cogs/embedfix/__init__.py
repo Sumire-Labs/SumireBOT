@@ -38,8 +38,8 @@ PLATFORM_FIXES = {
             r"https?://(?:www\.)?x\.com/\w+/status/\d+",
         ],
         "replacements": [
-            ("twitter.com", "vxtwitter.com"),
-            ("x.com", "vxtwitter.com"),
+            ("twitter.com", "fxtwitter.com"),
+            ("x.com", "fxtwitter.com"),
         ],
     },
 }
