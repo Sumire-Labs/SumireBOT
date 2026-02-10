@@ -39,18 +39,39 @@ class Music(PlayMixin, SkipMixin, LeaveMixin, LoopMixin, EventsMixin, commands.C
         self.db = Database()
         self.loop_mode: dict[int, str] = {}
         self._auto_leave_tasks: dict[int, asyncio.Task] = {}
+        self._lavalink_connected = False
+        self._lavalink_connect_task: Optional[asyncio.Task] = None
 
     async def cog_load(self) -> None:
-        """Cog読み込み時にLavalinkに接続"""
-        node = wavelink.Node(
-            uri=self.config.lavalink_uri,
-            password=self.config.lavalink_password,
-        )
-        await wavelink.Pool.connect(nodes=[node], client=self.bot, cache_capacity=100)
-        logger.info(f"Lavalink に接続しました: {self.config.lavalink_uri}")
+        """Cog読み込み時にLavalink接続タスクを開始"""
+        self._lavalink_connect_task = asyncio.create_task(self._connect_to_lavalink())
+
+    async def _connect_to_lavalink(self) -> None:
+        """Lavalinkにバックグラウンドで接続（リトライ付き）"""
+        retry_interval = 10  # 秒
+        max_retries = 30  # 最大5分間リトライ
+
+        for attempt in range(max_retries):
+            try:
+                node = wavelink.Node(
+                    uri=self.config.lavalink_uri,
+                    password=self.config.lavalink_password,
+                )
+                await wavelink.Pool.connect(nodes=[node], client=self.bot, cache_capacity=100)
+                self._lavalink_connected = True
+                logger.info(f"Lavalink に接続しました: {self.config.lavalink_uri}")
+                return
+            except Exception as e:
+                if attempt == 0:
+                    logger.warning(f"Lavalink に接続できません。バックグラウンドでリトライします: {e}")
+                await asyncio.sleep(retry_interval)
+
+        logger.error(f"Lavalink への接続に失敗しました（{max_retries}回リトライ後）")
 
     async def cog_unload(self) -> None:
         """Cog アンロード時にクリーンアップ"""
+        if self._lavalink_connect_task and not self._lavalink_connect_task.done():
+            self._lavalink_connect_task.cancel()
         for task in self._auto_leave_tasks.values():
             task.cancel()
         self._auto_leave_tasks.clear()
@@ -138,6 +159,14 @@ class Music(PlayMixin, SkipMixin, LeaveMixin, LoopMixin, EventsMixin, commands.C
 
     async def _ensure_voice(self, interaction: discord.Interaction) -> Optional[wavelink.Player]:
         """ボイスチャンネルに接続を確保"""
+        if not self._lavalink_connected:
+            view = CommonErrorView(
+                title="音楽サーバー未接続",
+                description="音楽サーバー（Lavalink）に接続中です。しばらくお待ちください。"
+            )
+            await interaction.response.send_message(view=view, ephemeral=True)
+            return None
+
         if not interaction.guild:
             view = CommonErrorView(
                 title="エラー",

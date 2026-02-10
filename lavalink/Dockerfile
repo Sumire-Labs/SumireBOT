@@ -3,6 +3,9 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /opt/lavalink
 
+# Install wget for healthcheck
+RUN apk add --no-cache wget
+
 # Create plugins directory
 RUN mkdir -p /opt/lavalink/plugins
 

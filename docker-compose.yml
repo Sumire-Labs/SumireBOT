@@ -24,6 +24,12 @@ services:
       - "2333"
     networks:
       - sumirebot-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:2333/version"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
 
 networks:
   sumirebot-network:
