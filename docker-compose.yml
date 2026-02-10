@@ -1,0 +1,30 @@
+services:
+  sumirebot:
+    build: .
+    container_name: sumirebot
+    restart: unless-stopped
+    depends_on:
+      - lavalink
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./database:/app/database
+      - ./logs:/app/logs
+    networks:
+      - sumirebot-network
+
+  lavalink:
+    build: ./lavalink
+    container_name: lavalink
+    restart: unless-stopped
+    volumes:
+      - ./lavalink/Lavalink.jar:/opt/lavalink/Lavalink.jar:ro
+      - ./lavalink/application.yml:/opt/lavalink/application.yml:ro
+      - ./lavalink/plugins:/opt/lavalink/plugins:ro
+    expose:
+      - "2333"
+    networks:
+      - sumirebot-network
+
+networks:
+  sumirebot-network:
+    driver: bridge
