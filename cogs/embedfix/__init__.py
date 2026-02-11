@@ -26,7 +26,7 @@ logger = get_logger("sumire.cogs.embedfix")
 PLATFORM_FIXES = {
     "instagram": {
         "patterns": [
-            r"https?://(?:www\.)?instagram\.com/(?:p|reel|reels)/[\w-]+",
+            r"https?://(?:www\.)?instagram\.com/(?:p|reel|reels)/[\w-]+[^\s<>]*",
         ],
         "replacements": [
             ("instagram.com", "vxinstagram.com"),
@@ -34,8 +34,8 @@ PLATFORM_FIXES = {
     },
     "twitter": {
         "patterns": [
-            r"https?://(?:www\.)?twitter\.com/\w+/status/\d+",
-            r"https?://(?:www\.)?x\.com/\w+/status/\d+",
+            r"https?://(?:www\.)?twitter\.com/\w+/status/\d+[^\s<>]*",
+            r"https?://(?:www\.)?x\.com/\w+/status/\d+[^\s<>]*",
         ],
         "replacements": [
             ("twitter.com", "fxtwitter.com"),
